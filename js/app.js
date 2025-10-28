@@ -15,7 +15,8 @@ const tableSchemas = {
     'registros_propiedad': {
         tableName: 'Libro de Propiedad',
         dbReadFields: ['id', 'fecha', 'partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num', 'created_at'],
-        columnNames: ['ID', 'Fecha', 'Partes Involucradas', 'Tipo Documento', 'Solicitante', 'N° Reg. Manual', 'Ingresado'],
+        // CAMBIO: 'ID' ahora es 'Número'
+        columnNames: ['Número', 'Fecha', 'Partes Involucradas', 'Tipo Documento', 'Solicitante', 'N° Reg. Manual', 'Ingresado'],
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
             { id: 'partes_involucradas', label: 'Partes Involucradas', type: 'text', span: 2, required: true },
@@ -27,24 +28,22 @@ const tableSchemas = {
     },
     'movimientos_sociedad': {
         tableName: 'Libro de Sociedad',
-        // CAMPOS DE DB ACTUALIZADOS
-        dbReadFields: ['id', 'numero', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'dia', 'mes', 'registro_parcial', 'observaciones', 'created_at'],
-        // NOMBRES DE COLUMNA ACTUALIZADOS
-        columnNames: ['ID', 'Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
-        // FORMULARIO ACTUALIZADO
+        // CAMPO 'numero' ELIMINADO (revertido a la estructura original)
+        dbReadFields: ['id', 'nombre_completo', 'tipo_movimiento', 'hora', 'numero_escrito', 'mes_escrito', 'tipo_registro', 'observaciones', 'created_at'],
+        // CAMBIO: 'ID' ahora es 'Número'
+        columnNames: ['Número', 'Nombre Completo', 'Tipo Movimiento', 'Hora', 'N° Escrito', 'Mes Escrito', 'Tipo Registro', 'Observaciones', 'Ingresado'],
+        // FORMULARIO REVERTIDO (sin 'numero')
         formFields: [
-            { id: 'numero', label: 'Número', type: 'text', span: 1, required: false },
-            { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
-            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: false },
-            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: false },
+            { id: 'nombre_completo', label: 'Nombre Completo', type: 'text', span: 2, required: true },
+            { id: 'tipo_movimiento', label: 'Tipo Movimiento', type: 'text', span: 1, required: false, placeholder: 'Ej: Constitución...' },
             { id: 'hora', label: 'Hora', type: 'time', span: 1, required: false },
-            { id: 'dia', label: 'Día', type: 'text', span: 1, required: false, placeholder: 'Ej: 01, 23...' },
-            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: false, placeholder: 'Ej: Enero, 05...' },
-            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: false },
+            { id: 'numero_escrito', label: 'N° Escrito', type: 'text', span: 1, required: false },
+            { id: 'mes_escrito', label: 'Mes Escrito', type: 'text', span: 1, required: false },
+            { id: 'tipo_registro', label: 'Tipo de Registro', type: 'text', span: 1, required: false },
             { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: false }
         ],
-        // FILTROS ACTUALIZADOS
-        filterColumns: ['numero', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
+        // FILTROS REVERTIDOS
+        filterColumns: ['nombre_completo', 'tipo_movimiento', 'tipo_registro', 'observaciones']
     }
 };
 
