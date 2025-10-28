@@ -13,13 +13,15 @@ const tableSchemas = {
     'registros_propiedad': {
         tableName: 'Libro de Propiedad',
         dbReadFields: ['id', 'fecha', 'partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num', 'created_at'],
-        columnNames: ['Número', 'Fecha', 'Partes Involucradas', 'Tipo Documento', 'Solicitante', 'N° Reg. Manual', 'Ingresado'],
+        // CAMBIO: Se reemplaza "N°" por "Nro." para compatibilidad con PDF
+        columnNames: ['Número', 'Fecha', 'Partes Involucradas', 'Tipo Documento', 'Solicitante', 'Nro. Reg. Manual', 'Ingresado'],
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
             { id: 'partes_involucradas', label: 'Partes Involucradas', type: 'text', span: 2, required: true },
             { id: 'tipo_documento', label: 'Tipo Documento', type: 'text', span: 1, required: false, placeholder: 'Ej: Mandato' },
             { id: 'solicitante', label: 'Nombre Solicitante', type: 'text', span: 1, required: true },
-            { id: 'registro_manual_num', label: 'N° Registro Manual', type: 'text', span: 1, required: false }
+            // CAMBIO: Se reemplaza "N°" por "Nro." para compatibilidad con PDF
+            { id: 'registro_manual_num', label: 'Nro. Registro Manual', type: 'text', span: 1, required: false }
         ],
         filterColumns: ['partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num']
     },
@@ -394,9 +396,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const schema = tableSchemas[currentTable];
 
-        const body = registros.map(row => 
-            schema.dbReadFields.map(field => row[field] || '')
-        );
+        // CAMBIO: Formatear los datos ANTES de pasarlos al PDF
+        const body = registros.map(row => {
+            return schema.dbReadFields.map(field => {
+                let cellData = row[field] || '';
+                // Formateo de fechas y horas
+                if (field === 'created_at' || field === 'fecha') {
+                    if(cellData) {
+                        cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    }
+                }
+                return cellData;
+            });
+        });
 
         doc.autoTable({
             head: [schema.columnNames],
