@@ -1,0 +1,20 @@
+/* actualizado */
+
+/* Define la fuente Serif para títulos y la Sans-Serif para el cuerpo */
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, #app-title {
+    font-family: 'Merriweather', serif;
+}
+
+
+/* Oculta vistas y elementos antes de que JS decida mostrarlos */
+#app-view, #loading-spinner, #error-message {
+    display: none;
+}
+
+[v-cloak] { 
+    display: none; 
+}
