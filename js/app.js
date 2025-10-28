@@ -27,18 +27,24 @@ const tableSchemas = {
     },
     'movimientos_sociedad': {
         tableName: 'Libro de Sociedad',
-        dbReadFields: ['id', 'nombre_completo', 'tipo_movimiento', 'hora', 'numero_escrito', 'mes_escrito', 'tipo_registro', 'observaciones', 'created_at'],
-        columnNames: ['ID', 'Nombre Completo', 'Tipo Movimiento', 'Hora', 'N° Escrito', 'Mes Escrito', 'Tipo Registro', 'Observaciones', 'Ingresado'],
+        // CAMPOS DE DB ACTUALIZADOS
+        dbReadFields: ['id', 'numero', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'dia', 'mes', 'registro_parcial', 'observaciones', 'created_at'],
+        // NOMBRES DE COLUMNA ACTUALIZADOS
+        columnNames: ['ID', 'Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
+        // FORMULARIO ACTUALIZADO
         formFields: [
-            { id: 'nombre_completo', label: 'Nombre Completo', type: 'text', span: 2, required: true },
-            { id: 'tipo_movimiento', label: 'Tipo Movimiento', type: 'text', span: 1, required: false, placeholder: 'Ej: Constitución...' },
+            { id: 'numero', label: 'Número', type: 'text', span: 1, required: false },
+            { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: false },
+            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: false },
             { id: 'hora', label: 'Hora', type: 'time', span: 1, required: false },
-            { id: 'numero_escrito', label: 'N° Escrito', type: 'text', span: 1, required: false },
-            { id: 'mes_escrito', label: 'Mes Escrito', type: 'text', span: 1, required: false },
-            { id: 'tipo_registro', label: 'Tipo de Registro', type: 'text', span: 1, required: false },
+            { id: 'dia', label: 'Día', type: 'text', span: 1, required: false, placeholder: 'Ej: 01, 23...' },
+            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: false, placeholder: 'Ej: Enero, 05...' },
+            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: false },
             { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: false }
         ],
-        filterColumns: ['nombre_completo', 'tipo_movimiento', 'tipo_registro', 'observaciones']
+        // FILTROS ACTUALIZADOS
+        filterColumns: ['numero', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
     }
 };
 
@@ -79,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Manejo de Autenticación y Carga Inicial
     // CAMBIO: Se quita la verificación de !supabase.auth, ya que si llegamos aquí, supabase SÍ existe.
+    // CORRECCIÓN DEFINITIVA: Es 'onAuthStateChange' (sin la 'd' al final)
     supabase.auth.onAuthStateChange((event, session) => {
         if (isAdmin) {
             // Estamos en app.html (Admin)
@@ -404,5 +411,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 }); // Fin de DOMContentLoaded
-
 
