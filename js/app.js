@@ -115,13 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 1.5. Lógica Específica de ADMIN (Logout y Guardar)
-    if (isAdmin && btnLogout && form) {
-        
+    
+    // CAMBIO: Listener de Logout (separado)
+    if (isAdmin && btnLogout) { 
         btnLogout.addEventListener('click', async () => {
             await supabase.auth.signOut();
-            window.location.href = 'index.html';
+            // onAuthStateChange se encargará de la redirección
         });
-
+    }
+    
+    // CAMBIO: Listener de Formulario (separado)
+    if (isAdmin && form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -140,22 +144,34 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let initialLoadCalled = false; // Flag para evitar recargas por refresh de token
     
+    // CAMBIO: Lógica de onAuthStateChange mejorada
     supabase.auth.onAuthStateChange((event, session) => {
         
         if (isAdmin) {
             // --- MODO ADMIN (app.html) ---
-            if (!session) {
-                // No hay sesión, ¡expulsar al login!
-                alert("Acceso denegado. Debes iniciar sesión.");
+            
+            if (event === 'SIGNED_OUT') {
+                // User clicked logout. Just redirect to login, no alert.
                 window.location.href = 'index.html';
                 return;
             }
-            
-            // Si hay sesión y es la primera vez que cargamos
-            if (session && !initialLoadCalled) {
-                initialLoadCalled = true;
-                appView.style.display = 'block';
-                updateTableUI(); // Carga inicial de datos
+
+            if (session) {
+                // User is logged in.
+                if (!initialLoadCalled) {
+                    // This is the initial load, show the app.
+                    initialLoadCalled = true;
+                    appView.style.display = 'block';
+                    updateTableUI(); // Carga inicial de datos
+                }
+                // If already loaded (e.g. TOKEN_REFRESHED), do nothing.
+            } else {
+                // User is not logged in (session is null).
+                // This catches INITIAL_SESSION (page load) and other events.
+                // We handled SIGNED_OUT above, so this is for unauthorized access.
+                alert("Acceso denegado. Debes iniciar sesión.");
+                window.location.href = 'index.html';
+                return;
             }
 
         } else {
@@ -358,9 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportPDF() {
-        // CAMBIO: Verificación de PDF más robusta y directa
-        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.jsPDF.prototype.autoTable === 'undefined') {
-            showError("Las librerías PDF aún no están cargadas. Intente de nuevo en unos segundos.");
+        // CAMBIO: Verificación de PDF en 2 pasos
+        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+            showError("La librería PDF principal (jspdf) no está cargada. Intente de nuevo.");
             return;
         }
 
@@ -369,6 +385,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape' });
+
+        // CAMBIO: Verificar .autoTable() en la *instancia* del documento
+        if (typeof doc.autoTable !== 'function') {
+            showError("La librería PDF (autoTable) aún no está lista. Intente de nuevo en unos segundos.");
+            return;
+        }
+
         const schema = tableSchemas[currentTable];
 
         const body = registros.map(row => 
