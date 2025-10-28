@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoading(false);
         
         if (error) {
-            showError('Error al cargar datos: '+ error.message);
+            showError('Error al cargar datos: ' + error.message);
             console.error(error);
             return;
         }
@@ -358,8 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportPDF() {
-        // Comprobar que jsPDF y autoTable están cargados
-        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.plugin.autotable === 'undefined') {
+        // CAMBIO: Verificación de PDF más robusta
+        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf.plugin || typeof window.jspdf.plugin.autotable === 'undefined') {
             showError("Las librerías PDF aún no están cargadas. Intente de nuevo en unos segundos.");
             return;
         }
@@ -394,13 +394,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (registros.length === 0) return;
 
         const schema = tableSchemas[currentTable];
+        // CAMBIO: Estilos de impresión mejorados
         let html = `
             <style>
-                body { font-family: 'Inter', sans-serif; }
-                h2 { font-family: 'Merriweather', serif; }
-                table { width: 100%; border-collapse: collapse; font-size: 10px; }
-                th, td { border: 1px solid #ccc; padding: 4px; }
-                th { background-color: #f0f0f0; }
+                body { font-family: 'Inter', sans-serif; font-size: 10px; }
+                h2 { font-family: 'Merriweather', serif; font-size: 16px; margin-bottom: 10px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+                th { font-weight: bold; background-color: #fff !important; }
                 @media print { 
                     body { -webkit-print-color-adjust: exact; }
                 }
@@ -431,6 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const printWindow = window.open('', '_blank');
         if (printWindow) {
             printWindow.document.write(html);
+            // CAMBIO: Añadir título a la ventana de impresión
+            printWindow.document.title = schema.tableName;
             printWindow.document.close();
             printWindow.focus();
             printWindow.print();
