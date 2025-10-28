@@ -8,14 +8,11 @@ if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
     alert('Error: Claves de Supabase no configuradas en app.js');
 }
 
-// CAMBIO: Se elimina la inicialización de Supabase de aquí.
-
 // --- Definición de la Estructura de Datos (SCHEMA) ---
 const tableSchemas = {
     'registros_propiedad': {
         tableName: 'Libro de Propiedad',
         dbReadFields: ['id', 'fecha', 'partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num', 'created_at'],
-        // CAMBIO: 'ID' ahora es 'Número'
         columnNames: ['Número', 'Fecha', 'Partes Involucradas', 'Tipo Documento', 'Solicitante', 'N° Reg. Manual', 'Ingresado'],
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
@@ -28,11 +25,8 @@ const tableSchemas = {
     },
     'movimientos_sociedad': {
         tableName: 'Libro de Sociedad',
-        // CAMBIOS: Estructura de campos ACTUALIZADA
         dbReadFields: ['id', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'dia', 'mes', 'registro_parcial', 'observaciones', 'created_at'],
-        // CAMBIOS: Cabeceras ACTUALIZADAS (ID es 'Número')
         columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
-        // CAMBIOS: Formulario ACTUALIZADO
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
             { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: false },
@@ -43,7 +37,6 @@ const tableSchemas = {
             { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: false },
             { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: false }
         ],
-        // CAMBIOS: Filtros ACTUALIZADOS
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
     }
 };
@@ -55,11 +48,10 @@ let currentTable = 'registros_propiedad'; // Tabla por defecto
 // --- Lógica Principal ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // CAMBIO: Inicializa Supabase AQUÍ, dentro de DOMContentLoaded
     if (!window.supabase) {
         showError("Error crítico: La librería de Supabase no se cargó correctamente.");
         console.error("Error: window.supabase no está definido.");
-        return; // Detiene la ejecución si Supabase no se cargó
+        return; 
     }
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -68,13 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const appView = document.getElementById('app-view');
     const appTitle = document.getElementById('app-title');
     
-    // Elementos solo para Admin (pueden ser null en modo invitado)
     const formContainer = document.getElementById('form-container');
     const btnLogout = document.getElementById('btn-logout');
     const form = document.getElementById('form-nuevo-registro');
     const dynamicFormFields = document.getElementById('dynamic-form-fields');
     
-    // Elementos comunes
     const btnPropiedad = document.getElementById('btn-propiedad');
     const btnSociedad = document.getElementById('btn-sociedad');
     const tableHeader = document.getElementById('table-header');
@@ -83,91 +73,119 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorMessage = document.getElementById('error-message');
 
-    // 1. Manejo de Autenticación y Carga Inicial
-    // CAMBIO: Se quita la verificación de !supabase.auth, ya que si llegamos aquí, supabase SÍ existe.
-    // CORRECCIÓN DEFINITIVA: Es 'onAuthStateChange' (sin la 'd' al final)
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (isAdmin) {
-            // Estamos en app.html (Admin)
-            if (!session) {
-                // No hay sesión, ¡expulsar al login!
-                alert("Acceso denegado. Debes iniciar sesión.");
-                window.location.href = 'index.html';
-            } else {
-                // Hay sesión, inicializar la app de admin
-                initializeApp(session.user);
-            }
-        } else {
-            // Estamos en invitado.html (Invitado)
-            initializeApp(null); // 'null' significa modo invitado
-        }
-    });
+    // --- 1. CONFIGURACIÓN DE EVENT LISTENERS (UNA SOLA VEZ) ---
 
-
-    // 2. Función de Inicialización Principal
-    function initializeApp(user) {
-        
-        // Muestra la app (antes estaba oculta por style.css)
-        appView.style.display = 'block';
-
-        // 3. Manejo de Pestañas (Libros)
+    // 1.1. Manejo de Pestañas (Libros)
+    if (btnPropiedad) {
         btnPropiedad.addEventListener('click', () => switchTable('registros_propiedad'));
+    }
+    if (btnSociedad) {
         btnSociedad.addEventListener('click', () => switchTable('movimientos_sociedad'));
+    }
 
-        // 4. Filtro de Búsqueda
+    // 1.2. Filtro de Búsqueda
+    if (filtroBusqueda) {
         let searchTimeout;
         filtroBusqueda.addEventListener('keyup', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(loadData, 300);
         });
-
-        // 5. Funciones de Exportación (PDF e Imprimir)
-        document.getElementById('btn-pdf').addEventListener('click', exportPDF);
-        document.getElementById('btn-print').addEventListener('click', exportPrint);
-        
-        // Listener de "seleccionar todo" (si la cabecera existe)
-        if (tableHeader) {
-            tableHeader.addEventListener('change', (e) => {
-                if (e.target.id === 'select-all-checkbox') {
-                    document.querySelectorAll('.row-checkbox').forEach(cb => {
-                        cb.checked = e.target.checked;
-                    });
-                }
-            });
-        }
-        
-        // 6. Lógica Específica de ADMIN (si los elementos existen)
-        if (user && isAdmin && btnLogout && form) {
-            
-            btnLogout.addEventListener('click', async () => {
-                await supabase.auth.signOut();
-                window.location.href = 'index.html';
-            });
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                saveNewRecord();
-            });
-        }
-        
-        // Carga inicial
-        updateTableUI();
     }
 
+    // 1.3. Funciones de Exportación (PDF e Imprimir)
+    const btnPdf = document.getElementById('btn-pdf');
+    const btnPrint = document.getElementById('btn-print');
+    
+    if (btnPdf) {
+        btnPdf.addEventListener('click', exportPDF);
+    }
+    if (btnPrint) {
+        btnPrint.addEventListener('click', exportPrint);
+    }
+    
+    // 1.4. Listener de "seleccionar todo"
+    if (tableHeader) {
+        tableHeader.addEventListener('change', (e) => {
+            if (e.target.id === 'select-all-checkbox') {
+                document.querySelectorAll('.row-checkbox').forEach(cb => {
+                    cb.checked = e.target.checked;
+                });
+            }
+        });
+    }
+    
+    // 1.5. Lógica Específica de ADMIN (Logout y Guardar)
+    if (isAdmin && btnLogout && form) {
+        
+        btnLogout.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.href = 'index.html';
+        });
 
-    // --- Funciones de la Aplicación ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Deshabilitar botón para prevenir doble clic
+            const saveButton = document.getElementById('btn-save');
+            if (saveButton) saveButton.disabled = true;
+
+            await saveNewRecord(); // Espera a que termine de guardar
+            
+            // Vuelve a habilitar el botón
+            if (saveButton) saveButton.disabled = false;
+        });
+    }
+    
+    // --- 2. MANEJO DE AUTENTICACIÓN Y CARGA INICIAL ---
+    
+    let initialLoadCalled = false; // Flag para evitar recargas por refresh de token
+    
+    supabase.auth.onAuthStateChange((event, session) => {
+        
+        if (isAdmin) {
+            // --- MODO ADMIN (app.html) ---
+            if (!session) {
+                // No hay sesión, ¡expulsar al login!
+                alert("Acceso denegado. Debes iniciar sesión.");
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Si hay sesión y es la primera vez que cargamos
+            if (session && !initialLoadCalled) {
+                initialLoadCalled = true;
+                appView.style.display = 'block';
+                updateTableUI(); // Carga inicial de datos
+            }
+
+        } else {
+            // --- MODO INVITADO (invitado.html) ---
+            if (!initialLoadCalled) {
+                initialLoadCalled = true;
+                appView.style.display = 'block';
+                updateTableUI(); // Carga inicial de datos
+            }
+        }
+    });
+
+
+    // --- 3. FUNCIONES DE LA APLICACIÓN ---
 
     function switchTable(tableName) {
         currentTable = tableName;
         
         [btnPropiedad, btnSociedad].forEach(btn => {
-            btn.classList.remove('border-gray-800', 'text-gray-800');
-            btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            if(btn) {
+                btn.classList.remove('border-gray-800', 'text-gray-800');
+                btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            }
         });
         
         const activeBtn = (tableName === 'registros_propiedad') ? btnPropiedad : btnSociedad;
-        activeBtn.classList.add('border-gray-800', 'text-gray-800');
-        activeBtn.classList.remove('border-transparent', 'text-gray-500');
+        if(activeBtn) {
+            activeBtn.classList.add('border-gray-800', 'text-gray-800');
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+        }
 
         updateTableUI();
     }
@@ -177,11 +195,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showError(null);
         
         const schema = tableSchemas[currentTable];
-        const filtro = filtroBusqueda.value;
+        const filtro = filtroBusqueda ? filtroBusqueda.value : '';
         
         let query = supabase.from(currentTable).select(schema.dbReadFields.join(',')).order('id', { ascending: false });
         
-        if (filtro) {
+        if (filtro && schema.filterColumns.length > 0) {
             const filtroQuery = schema.filterColumns
                 .map(col => `${col}.ilike.%${filtro}%`)
                 .join(',');
@@ -192,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoading(false);
         
         if (error) {
-            showError('Error al cargar datos: ' + error.message);
+            showError('Error al cargar datos: '+ error.message);
             console.error(error);
             return;
         }
@@ -214,9 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tableHeader) {
             tableHeader.innerHTML = `<tr><th class="p-3 w-12"><input type="checkbox" id="select-all-checkbox" class="rounded border-gray-300"></th></tr>`;
             const headerRow = tableHeader.querySelector('tr');
-            schema.columnNames.forEach(name => {
-                headerRow.innerHTML += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${name}</th>`;
-            });
+            if (headerRow) {
+                schema.columnNames.forEach(name => {
+                    headerRow.innerHTML += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${name}</th>`;
+                });
+            }
         }
 
         // Renderizar formulario (solo si estamos en modo admin)
@@ -228,7 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderForm(schema) {
-        // Esta función solo se llama si 'isAdmin' es true
+        if (!dynamicFormFields) return;
+        
         dynamicFormFields.innerHTML = '';
         schema.formFields.forEach(field => {
             let inputHtml = '';
@@ -257,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tableBody) return;
         
         tableBody.innerHTML = '';
-        if (data.length === 0) {
+        if (!data || data.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-4 text-gray-500">No hay registros.</td></tr>';
             return;
         }
@@ -276,31 +297,47 @@ document.addEventListener('DOMContentLoaded', () => {
                         cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
                     }
                 }
-                tr.innerHTML += `<td class="px-6 py-4 whitespace-rap text-sm text-gray-700">${cellData || ''}</td>`;
+                tr.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${cellData || ''}</td>`;
             });
             
-            tr.querySelector('.row-checkbox').dataset.registro = JSON.stringify(row);
+            const checkbox = tr.querySelector('.row-checkbox');
+            if(checkbox) {
+                checkbox.dataset.registro = JSON.stringify(row);
+            }
             tableBody.appendChild(tr);
         });
     }
     
     async function saveNewRecord() {
-        // Esta función solo se llama si 'isAdmin' es true
         const schema = tableSchemas[currentTable];
         const newRow = {};
+        let isValid = true;
         
         schema.formFields.forEach(field => {
             const input = document.getElementById(`form-${field.id}`);
-            if (input.value) {
-                newRow[field.id] = input.value;
+            if (input) {
+                if (input.value) {
+                    newRow[field.id] = input.value;
+                } else if (field.required) {
+                    isValid = false;
+                }
             }
         });
+
+        if (!isValid) {
+            showError('Por favor, complete todos los campos requeridos (*).');
+            // Habilita el botón de nuevo si falló la validación
+            const saveButton = document.getElementById('btn-save');
+            if (saveButton) saveButton.disabled = false;
+            return; 
+        }
         
         const { error } = await supabase.from(currentTable).insert([newRow]);
         
         if (error) {
             showError('Error al guardar: ' + error.message);
         } else {
+            showError(null); // Limpia errores
             if(form) form.reset();
             loadData();
         }
@@ -321,6 +358,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportPDF() {
+        // Comprobar que jsPDF y autoTable están cargados
+        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.plugin.autotable === 'undefined') {
+            showError("Las librerías PDF aún no están cargadas. Intente de nuevo en unos segundos.");
+            return;
+        }
+
         const registros = getSelectedData();
         if (registros.length === 0) return;
         
@@ -339,7 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
             headStyles: { fillColor: [41, 41, 41] }, // Color de cabecera (oscuro)
             didDrawPage: (data) => {
                 // Título
-                doc.setFont('Merriweather', 'bold');
                 doc.setFontSize(16);
                 doc.text(schema.tableName, data.settings.margin.left, 15);
             }
@@ -387,10 +429,14 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         const printWindow = window.open('', '_blank');
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        } else {
+            showError("No se pudo abrir la ventana de impresión. Revise los permisos de pop-ups.");
+        }
     }
 
     // --- Funciones de Utilidad (comunes) ---
