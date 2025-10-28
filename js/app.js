@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Manejo de Autenticación y Carga Inicial
     // CAMBIO: Se quita la verificación de !supabase.auth, ya que si llegamos aquí, supabase SÍ existe.
-    supabase.auth.onauthStateChanged((event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
         if (isAdmin) {
             // Estamos en app.html (Admin)
             if (!session) {
