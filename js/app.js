@@ -3,21 +3,12 @@
 const SUPABASE_URL = 'https://itnjnoqcppkvzqlbmyrq.supabase.co'; // TODO: Reemplaza si es necesario
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmpub3FjcHBrdnpxbGJteXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1ODczODEsImV4cCI6MjA3NzE2MzM4MX0.HP2ChKbP4O5YWu73I6UYgLoH2O80rMcJiWdZRSTYrV8'; // TODO: Reemplaza si es necesario
 
-// CAMBIO: Se corrigió la lógica de esta advertencia
 if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
     console.warn('¡Atención! Debes configurar tus claves de Supabase en login.js y app.js');
     alert('Error: Claves de Supabase no configuradas en app.js');
 }
 
-// CAMBIO: Se corrigió la lógica de creación del cliente
-const supabase = (window.supabase && window.supabase.createClient)
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : { auth: null, from: () => ({ select: () => ({ data: [], error: "Supabase no cargado" }), insert: () => {} }) };
-
-if (!window.supabase) {
-    console.error("No se pudo cargar Supabase. Revisa el script en el <head> de los HTML.");
-}
-
+// CAMBIO: Se elimina la inicialización de Supabase de aquí.
 
 // --- Definición de la Estructura de Datos (SCHEMA) ---
 const tableSchemas = {
@@ -58,6 +49,15 @@ let currentTable = 'registros_propiedad'; // Tabla por defecto
 // --- Lógica Principal ---
 document.addEventListener('DOMContentLoaded', () => {
 
+    // CAMBIO: Inicializa Supabase AQUÍ, dentro de DOMContentLoaded
+    if (!window.supabase) {
+        showError("Error crítico: La librería de Supabase no se cargó correctamente.");
+        console.error("Error: window.supabase no está definido.");
+        return; // Detiene la ejecución si Supabase no se cargó
+    }
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
     // --- Referencias a Elementos del DOM ---
     const appView = document.getElementById('app-view');
     const appTitle = document.getElementById('app-title');
@@ -78,13 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
 
     // 1. Manejo de Autenticación y Carga Inicial
-    // CAMBIO: Verificamos que supabase.auth exista ANTES de llamarlo.
-    if (!supabase || !supabase.auth) {
-        showError("Error crítico: La librería de Supabase no se cargó correctamente. Revise la conexión a internet y los scripts del HTML.");
-        console.error("Error: supabase.auth no está definido.", supabase);
-        return; // Detiene la ejecución si Supabase no se cargó
-    }
-
+    // CAMBIO: Se quita la verificación de !supabase.auth, ya que si llegamos aquí, supabase SÍ existe.
     supabase.auth.onAuthStateChanged((event, session) => {
         if (isAdmin) {
             // Estamos en app.html (Admin)
@@ -298,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { error } = await supabase.from(currentTable).insert([newRow]);
         
         if (error) {
-            showError('Error al guardar: ' + 'A' + error.message);
+            showError('Error al guardar: ' + error.message);
         } else {
             if(form) form.reset();
             loadData();
@@ -410,4 +404,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 }); // Fin de DOMContentLoaded
+
 
