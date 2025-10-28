@@ -415,9 +415,12 @@ document.addEventListener('DOMContentLoaded', () => {
             body: body,
             styles: { fontSize: 8 },
             headStyles: { fillColor: [41, 41, 41] }, // Color de cabecera (oscuro)
+            // CAMBIO: Añadir startY para dar espacio al título
+            startY: 22,
             didDrawPage: (data) => {
                 // Título
                 doc.setFontSize(16);
+                // El título se dibuja en y=15, la tabla empieza en y=22
                 doc.text(schema.tableName, data.settings.margin.left, 15);
             }
         });
