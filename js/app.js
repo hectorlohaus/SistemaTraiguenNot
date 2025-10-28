@@ -358,8 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportPDF() {
-        // CAMBIO: Verificación de PDF más robusta
-        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf.plugin || typeof window.jspdf.plugin.autotable === 'undefined') {
+        // CAMBIO: Verificación de PDF más robusta y directa
+        if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.jsPDF.prototype.autoTable === 'undefined') {
             showError("Las librerías PDF aún no están cargadas. Intente de nuevo en unos segundos.");
             return;
         }
