@@ -72,6 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableHeader = document.getElementById('table-header');
     const tableBody = document.getElementById('table-body');
     const filtroBusqueda = document.getElementById('filtro-busqueda');
+    // CAMBIO: Añadir referencia al nuevo botón de búsqueda
+    const btnBuscar = document.getElementById('btn-buscar');
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorMessage = document.getElementById('error-message');
 
@@ -86,11 +88,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 1.2. Filtro de Búsqueda
-    if (filtroBusqueda) {
-        let searchTimeout;
-        filtroBusqueda.addEventListener('keyup', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(loadData, 300);
+    // CAMBIO: Se elimina el listener 'keyup' con temporizador.
+    // Ahora la búsqueda se activa con el botón o con la tecla "Enter".
+    if (filtroBusqueda && btnBuscar) {
+        // Disparar la búsqueda al hacer clic en el botón
+        btnBuscar.addEventListener('click', loadData);
+
+        // Disparar la búsqueda al presionar "Enter" en el input
+        filtroBusqueda.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                loadData();
+            }
         });
     }
 
@@ -118,59 +126,46 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 1.5. Lógica Específica de ADMIN (Logout y Guardar)
     
-    // CAMBIO: Listener de Logout (separado)
     if (isAdmin && btnLogout) { 
         btnLogout.addEventListener('click', async () => {
             await supabase.auth.signOut();
-            // onAuthStateChange se encargará de la redirección
         });
     }
     
-    // CAMBIO: Listener de Formulario (separado)
     if (isAdmin && form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Deshabilitar botón para prevenir doble clic
             const saveButton = document.getElementById('btn-save');
             if (saveButton) saveButton.disabled = true;
 
-            await saveNewRecord(); // Espera a que termine de guardar
+            await saveNewRecord(); 
             
-            // Vuelve a habilitar el botón
             if (saveButton) saveButton.disabled = false;
         });
     }
     
     // --- 2. MANEJO DE AUTENTICACIÓN Y CARGA INICIAL ---
     
-    let initialLoadCalled = false; // Flag para evitar recargas por refresh de token
+    let initialLoadCalled = false; 
     
-    // CAMBIO: Lógica de onAuthStateChange mejorada
     supabase.auth.onAuthStateChange((event, session) => {
         
         if (isAdmin) {
             // --- MODO ADMIN (app.html) ---
             
             if (event === 'SIGNED_OUT') {
-                // User clicked logout. Just redirect to login, no alert.
                 window.location.href = 'index.html';
                 return;
             }
 
             if (session) {
-                // User is logged in.
                 if (!initialLoadCalled) {
-                    // This is the initial load, show the app.
                     initialLoadCalled = true;
                     appView.style.display = 'block';
-                    updateTableUI(); // Carga inicial de datos
+                    updateTableUI(); 
                 }
-                // If already loaded (e.g. TOKEN_REFRESHED), do nothing.
             } else {
-                // User is not logged in (session is null).
-                // This catches INITIAL_SESSION (page load) and other events.
-                // We handled SIGNED_OUT above, so this is for unauthorized access.
                 alert("Acceso denegado. Debes iniciar sesión.");
                 window.location.href = 'index.html';
                 return;
@@ -181,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!initialLoadCalled) {
                 initialLoadCalled = true;
                 appView.style.display = 'block';
-                updateTableUI(); // Carga inicial de datos
+                updateTableUI(); 
             }
         }
     });
@@ -213,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showError(null);
         
         const schema = tableSchemas[currentTable];
+        // CAMBIO: Se obtiene el valor del filtro aquí, dentro de loadData
         const filtro = filtroBusqueda ? filtroBusqueda.value : '';
         
         let query = supabase.from(currentTable).select(schema.dbReadFields.join(',')).order('id', { ascending: false });
@@ -257,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Renderizar formulario (solo si estamos en modo admin)
         if (isAdmin && dynamicFormFields) {
             renderForm(schema);
         }
@@ -309,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             schema.dbReadFields.forEach(field => {
                 let cellData = row[field];
-                // Formateo de fechas y horas
                 if (field === 'created_at' || field === 'fecha') {
                     if(cellData) {
                         cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -344,7 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!isValid) {
             showError('Por favor, complete todos los campos requeridos (*).');
-            // Habilita el botón de nuevo si falló la validación
             const saveButton = document.getElementById('btn-save');
             if (saveButton) saveButton.disabled = false;
             return; 
@@ -355,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (error) {
             showError('Error al guardar: ' + error.message);
         } else {
-            showError(null); // Limpia errores
+            showError(null); 
             if(form) form.reset();
             loadData();
         }
@@ -376,7 +369,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportPDF() {
-        // CAMBIO: Verificación de PDF en 2 pasos
         if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
             showError("La librería PDF principal (jspdf) no está cargada. Intente de nuevo.");
             return;
@@ -388,7 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape' });
 
-        // CAMBIO: Verificar .autoTable() en la *instancia* del documento
         if (typeof doc.autoTable !== 'function') {
             showError("La librería PDF (autoTable) aún no está lista. Intente de nuevo en unos segundos.");
             return;
@@ -396,11 +387,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const schema = tableSchemas[currentTable];
 
-        // CAMBIO: Formatear los datos ANTES de pasarlos al PDF
         const body = registros.map(row => {
             return schema.dbReadFields.map(field => {
                 let cellData = row[field] || '';
-                // Formateo de fechas y horas
                 if (field === 'created_at' || field === 'fecha') {
                     if(cellData) {
                         cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -414,13 +403,10 @@ document.addEventListener('DOMContentLoaded', () => {
             head: [schema.columnNames],
             body: body,
             styles: { fontSize: 8 },
-            headStyles: { fillColor: [41, 41, 41] }, // Color de cabecera (oscuro)
-            // CAMBIO: Añadir startY para dar espacio al título
+            headStyles: { fillColor: [41, 41, 41] }, 
             startY: 22,
             didDrawPage: (data) => {
-                // Título
                 doc.setFontSize(16);
-                // El título se dibuja en y=15, la tabla empieza en y=22
                 doc.text(schema.tableName, data.settings.margin.left, 15);
             }
         });
@@ -432,7 +418,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (registros.length === 0) return;
 
         const schema = tableSchemas[currentTable];
-        // CAMBIO: Estilos de impresión mejorados
         let html = `
             <style>
                 body { font-family: 'Inter', sans-serif; font-size: 10px; }
@@ -470,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const printWindow = window.open('', '_blank');
         if (printWindow) {
             printWindow.document.write(html);
-            // CAMBIO: Añadir título a la ventana de impresión
             printWindow.document.title = schema.tableName;
             printWindow.document.close();
             printWindow.focus();
