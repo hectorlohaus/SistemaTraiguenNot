@@ -18,10 +18,10 @@ const tableSchemas = {
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
             { id: 'partes_involucradas', label: 'Partes Involucradas', type: 'text', span: 2, required: true },
-            { id: 'tipo_documento', label: 'Tipo Documento', type: 'text', span: 1, required: false, placeholder: 'Ej: Mandato' },
+            { id: 'tipo_documento', label: 'Tipo Documento', type: 'text', span: 1, required: true, placeholder: 'Ej: Mandato' },
             { id: 'solicitante', label: 'Nombre Solicitante', type: 'text', span: 1, required: true },
             // CAMBIO: Se reemplaza "N°" por "Nro." para compatibilidad con PDF
-            { id: 'registro_manual_num', label: 'Nro. Registro Manual', type: 'text', span: 1, required: false }
+            { id: 'registro_manual_num', label: 'Nro. Registro Manual', type: 'text', span: 1, required: true }
         ],
         filterColumns: ['partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num']
     },
@@ -31,13 +31,13 @@ const tableSchemas = {
         columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
-            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: false },
-            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: false },
-            { id: 'hora', label: 'Hora', type: 'time', span: 1, required: false },
-            { id: 'dia', label: 'Día', type: 'text', span: 1, required: false, placeholder: 'Ej: 01, 23...' },
-            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: false, placeholder: 'Ej: Enero, 05...' },
-            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: false },
-            { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: false }
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: true },
+            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: true },
+            { id: 'hora', label: 'Hora', type: 'time', span: 1, required: true },
+            { id: 'dia', label: 'Día', type: 'text', span: 1, required: true, placeholder: 'Ej: 01, 23...' },
+            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: true, placeholder: 'Ej: Enero, 05...' },
+            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: true },
+            { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: true }
         ],
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
     }
