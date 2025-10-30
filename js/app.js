@@ -1,7 +1,7 @@
 // actualizado
 // --- PASO 1: Configuración de Supabase ---
 const SUPABASE_URL = 'https://itnjnoqcppkvzqlbmyrq.supabase.co'; // TODO: Reemplaza si es necesario
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmpub3FjcHBrdnpxbGJteXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1ODczODEsImV4cCI6MjA3NzE2MzM4MX0.HP2ChKbP4O5YWu73I6UYgLoH2O80rMcJiWdZRSTYrV8'; // TODO: Reemplaza si es necesario
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzINIIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmpub3FjcHBrdnpxbGJteXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1ODczODEsImV4cCI6MjA3NzE2MzM4MX0.HP2ChKbP4O5YWu73I6UYgLoH2O80rMcJiWdZRSTYrV8'; // TODO: Reemplaza si es necesario
 
 if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
     console.warn('¡Atención! Debes configurar tus claves de Supabase en login.js y app.js');
@@ -12,23 +12,27 @@ if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
 const tableSchemas = {
     'registros_propiedad': {
         tableName: 'Libro de Propiedad',
-        dbReadFields: ['id', 'fecha', 'partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num', 'created_at'],
-        // CAMBIO: Se reemplaza "N°" por "Nro." para compatibilidad con PDF
-        columnNames: ['Número', 'Fecha', 'Partes Involucradas', 'Tipo Documento', 'Solicitante', 'Nro. Reg. Manual', 'Ingresado'],
+        // CAMBIO: Nuevos campos de base de datos
+        dbReadFields: ['id', 'fecha', 'n_rep', 'nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado', 'created_at'],
+        // CAMBIO: Nuevos nombres de columnas
+        columnNames: ['Número', 'Fecha', 'N° Rep (mm-yyyy)', 'Nombre de los contratantes', 'Acto o Contrato', 'Abogado Redactor', 'N° Agregado', 'Ingresado'],
+        // CAMBIO: Nuevos campos de formulario
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
-            { id: 'partes_involucradas', label: 'Partes Involucradas', type: 'text', span: 2, required: true },
-            { id: 'tipo_documento', label: 'Tipo Documento', type: 'text', span: 1, required: true, placeholder: 'Ej: Mandato' },
-            { id: 'solicitante', label: 'Nombre Solicitante', type: 'text', span: 1, required: true },
-            // CAMBIO: Se reemplaza "N°" por "Nro." para compatibilidad con PDF
-            { id: 'registro_manual_num', label: 'Nro. Registro Manual', type: 'text', span: 1, required: true }
+            { id: 'n_rep', label: 'N° Rep (mm-yyyy)', type: 'text', span: 1, required: true, placeholder: 'mm-yyyy' },
+            { id: 'nombre_contratantes', label: 'Nombre de los contratantes', type: 'text', span: 2, required: true },
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 1, required: true },
+            { id: 'abogado_redactor', label: 'Abogado Redactor', type: 'text', span: 1, required: true },
+            { id: 'n_agregado', label: 'N° Agregado', type: 'text', span: 1, required: true }
         ],
-        filterColumns: ['partes_involucradas', 'tipo_documento', 'solicitante', 'registro_manual_num']
+        // CAMBIO: Nuevas columnas para filtro
+        filterColumns: ['n_rep', 'nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado']
     },
     'movimientos_sociedad': {
         tableName: 'Libro de Sociedad',
         dbReadFields: ['id', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'dia', 'mes', 'registro_parcial', 'observaciones', 'created_at'],
         columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
+        // CAMBIO: Todos los campos son obligatorios
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
             { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: true },
@@ -72,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableHeader = document.getElementById('table-header');
     const tableBody = document.getElementById('table-body');
     const filtroBusqueda = document.getElementById('filtro-busqueda');
-    // CAMBIO: Añadir referencia al nuevo botón de búsqueda
     const btnBuscar = document.getElementById('btn-buscar');
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorMessage = document.getElementById('error-message');
@@ -88,13 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 1.2. Filtro de Búsqueda
-    // CAMBIO: Se elimina el listener 'keyup' con temporizador.
-    // Ahora la búsqueda se activa con el botón o con la tecla "Enter".
     if (filtroBusqueda && btnBuscar) {
-        // Disparar la búsqueda al hacer clic en el botón
         btnBuscar.addEventListener('click', loadData);
-
-        // Disparar la búsqueda al presionar "Enter" en el input
         filtroBusqueda.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
                 loadData();
@@ -208,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showError(null);
         
         const schema = tableSchemas[currentTable];
-        // CAMBIO: Se obtiene el valor del filtro aquí, dentro de loadData
         const filtro = filtroBusqueda ? filtroBusqueda.value : '';
         
         let query = supabase.from(currentTable).select(schema.dbReadFields.join(',')).order('id', { ascending: false });
@@ -266,7 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dynamicFormFields.innerHTML = '';
         schema.formFields.forEach(field => {
             let inputHtml = '';
-            const requiredAttr = field.required ? 'required' : '';
+            // CAMBIO: Se usa el 'required' del schema (que ahora es true para todos)
+            const requiredAttr = field.required ? 'required' : ''; 
             
             if (field.type === 'textarea') {
                 inputHtml = `<textarea id="form-${field.id}" ${requiredAttr} class="mt-1 block w-full border border-gray-300 rounded-md p-2" rows="2"></textarea>`;
@@ -279,7 +277,9 @@ document.addEventListener('DOMContentLoaded', () => {
             dynamicFormFields.innerHTML += `
                 <div class="col-span-1 md:col-span-${field.span || 1}">
                     <label for="form-${field.id}" class="block text-sm font-medium text-gray-700">
-                        ${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}
+                        ${field.label} 
+                        <!-- CAMBIO: Se muestra el asterisco en todos -->
+                        <span class="text-red-500">*</span>
                     </label>
                     ${inputHtml}
                 </div>
@@ -328,10 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
         schema.formFields.forEach(field => {
             const input = document.getElementById(`form-${field.id}`);
             if (input) {
+                // CAMBIO: La validación ahora solo comprueba si el valor está vacío
                 if (input.value) {
                     newRow[field.id] = input.value;
-                } else if (field.required) {
-                    isValid = false;
+                } else {
+                    // Como ahora todos son 'required', si uno está vacío, no es válido
+                    isValid = false; 
                 }
             }
         });
