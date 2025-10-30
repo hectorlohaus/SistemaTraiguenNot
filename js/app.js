@@ -1,22 +1,15 @@
-// actualizado
-// --- PASO 1: Configuración de Supabase ---
-const SUPABASE_URL = 'https://itnjnoqcppkvzqlbmyrq.supabase.co'; // TODO: Reemplaza si es necesario
+const SUPABASE_URL = 'https://itnjnoqcppkvzqlbmyrq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmpub3FjcHBrdnpxbGJteXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1ODczODEsImV4cCI6MjA3NzE2MzM4MX0.HP2ChKbP4O5YWu73I6UYgLoH2O80rMcJiWdZRSTYrV8'; // TODO: Reemplaza si es necesario
 
 if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
     console.warn('¡Atención! Debes configurar tus claves de Supabase en login.js y app.js');
     alert('Error: Claves de Supabase no configuradas en app.js');
 }
-
-// --- Definición de la Estructura de Datos (SCHEMA) ---
 const tableSchemas = {
     'registros_propiedad': {
-        tableName: 'Libro de Propiedad',
-        // CAMBIO: Nuevos campos de base de datos
-        dbReadFields: ['id', 'fecha', 'n_rep', 'nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado', 'created_at'],
-        // CAMBIO: Nuevos nombres de columnas
-        columnNames: ['Número', 'Fecha', 'N° Rep (mm-yyyy)', 'Nombre de los contratantes', 'Acto o Contrato', 'Abogado Redactor', 'N° Agregado', 'Ingresado'],
-        // CAMBIO: Nuevos campos de formulario
+        tableName: 'Libro de Propiedad',      
+        dbReadFields: ['id', 'fecha', 'n_rep', 'nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado', 'created_at'],       
+        columnNames: ['Número', 'Fecha', 'N° Rep (mm-yyyy)', 'Nombre de los contratantes', 'Acto o Contrato', 'Abogado Redactor', 'N° Agregado', 'Ingresado'],      
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
             { id: 'n_rep', label: 'N° Rep (mm-yyyy)', type: 'text', span: 1, required: true, placeholder: 'mm-yyyy' },
@@ -25,14 +18,13 @@ const tableSchemas = {
             { id: 'abogado_redactor', label: 'Abogado Redactor', type: 'text', span: 1, required: true },
             { id: 'n_agregado', label: 'N° Agregado', type: 'text', span: 1, required: true }
         ],
-        // CAMBIO: Nuevas columnas para filtro
+       
         filterColumns: ['n_rep', 'nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado']
     },
     'movimientos_sociedad': {
         tableName: 'Libro de Sociedad',
         dbReadFields: ['id', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'dia', 'mes', 'registro_parcial', 'observaciones', 'created_at'],
-        columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
-        // CAMBIO: Todos los campos son obligatorios
+        columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],       
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
             { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: true },
@@ -46,31 +38,21 @@ const tableSchemas = {
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
     }
 };
+let currentTable = 'registros_propiedad'; 
 
-// --- Variables Globales ---
-let currentTable = 'registros_propiedad'; // Tabla por defecto
-// 'isAdmin' se define en el HTML (app.html o invitado.html)
-
-// --- Lógica Principal ---
 document.addEventListener('DOMContentLoaded', () => {
-
     if (!window.supabase) {
         showError("Error crítico: La librería de Supabase no se cargó correctamente.");
         console.error("Error: window.supabase no está definido.");
         return; 
     }
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-
-    // --- Referencias a Elementos del DOM ---
     const appView = document.getElementById('app-view');
     const appTitle = document.getElementById('app-title');
-    
     const formContainer = document.getElementById('form-container');
     const btnLogout = document.getElementById('btn-logout');
     const form = document.getElementById('form-nuevo-registro');
     const dynamicFormFields = document.getElementById('dynamic-form-fields');
-    
     const btnPropiedad = document.getElementById('btn-propiedad');
     const btnSociedad = document.getElementById('btn-sociedad');
     const tableHeader = document.getElementById('table-header');
@@ -80,17 +62,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorMessage = document.getElementById('error-message');
 
-    // --- 1. CONFIGURACIÓN DE EVENT LISTENERS (UNA SOLA VEZ) ---
-
-    // 1.1. Manejo de Pestañas (Libros)
     if (btnPropiedad) {
         btnPropiedad.addEventListener('click', () => switchTable('registros_propiedad'));
     }
     if (btnSociedad) {
         btnSociedad.addEventListener('click', () => switchTable('movimientos_sociedad'));
     }
-
-    // 1.2. Filtro de Búsqueda
     if (filtroBusqueda && btnBuscar) {
         btnBuscar.addEventListener('click', loadData);
         filtroBusqueda.addEventListener('keyup', (e) => {
@@ -99,19 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // 1.3. Funciones de Exportación (PDF e Imprimir)
     const btnPdf = document.getElementById('btn-pdf');
     const btnPrint = document.getElementById('btn-print');
-    
     if (btnPdf) {
         btnPdf.addEventListener('click', exportPDF);
     }
     if (btnPrint) {
         btnPrint.addEventListener('click', exportPrint);
     }
-    
-    // 1.4. Listener de "seleccionar todo"
     if (tableHeader) {
         tableHeader.addEventListener('change', (e) => {
             if (e.target.id === 'select-all-checkbox') {
@@ -121,15 +93,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
-    // 1.5. Lógica Específica de ADMIN (Logout y Guardar)
-    
     if (isAdmin && btnLogout) { 
         btnLogout.addEventListener('click', async () => {
             await supabase.auth.signOut();
         });
-    }
-    
+    }   
     if (isAdmin && form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -142,16 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (saveButton) saveButton.disabled = false;
         });
     }
-    
-    // --- 2. MANEJO DE AUTENTICACIÓN Y CARGA INICIAL ---
-    
     let initialLoadCalled = false; 
     
     supabase.auth.onAuthStateChange((event, session) => {
         
         if (isAdmin) {
-            // --- MODO ADMIN (app.html) ---
-            
             if (event === 'SIGNED_OUT') {
                 window.location.href = 'index.html';
                 return;
@@ -170,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } else {
-            // --- MODO INVITADO (invitado.html) ---
             if (!initialLoadCalled) {
                 initialLoadCalled = true;
                 appView.style.display = 'block';
@@ -178,9 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-
-    // --- 3. FUNCIONES DE LA APLICACIÓN ---
 
     function switchTable(tableName) {
         currentTable = tableName;
@@ -263,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dynamicFormFields.innerHTML = '';
         schema.formFields.forEach(field => {
             let inputHtml = '';
-            // CAMBIO: Se usa el 'required' del schema (que ahora es true para todos)
             const requiredAttr = field.required ? 'required' : ''; 
             
             if (field.type === 'textarea') {
@@ -328,11 +286,9 @@ document.addEventListener('DOMContentLoaded', () => {
         schema.formFields.forEach(field => {
             const input = document.getElementById(`form-${field.id}`);
             if (input) {
-                // CAMBIO: La validación ahora solo comprueba si el valor está vacío
                 if (input.value) {
                     newRow[field.id] = input.value;
                 } else {
-                    // Como ahora todos son 'required', si uno está vacío, no es válido
                     isValid = false; 
                 }
             }
@@ -343,10 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const saveButton = document.getElementById('btn-save');
             if (saveButton) saveButton.disabled = false;
             return; 
-        }
-        
-        const { error } = await supabase.from(currentTable).insert([newRow]);
-        
+        }       
+        const { error } = await supabase.from(currentTable).insert([newRow]);        
         if (error) {
             showError('Error al guardar: ' + error.message);
         } else {
@@ -356,7 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Funciones de Exportación (comunes) ---
     function getSelectedData() {
         const registros = [];
         document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
@@ -369,26 +322,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return registros;
     }
-
     function exportPDF() {
         if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
             showError("La librería PDF principal (jspdf) no está cargada. Intente de nuevo.");
             return;
         }
-
         const registros = getSelectedData();
         if (registros.length === 0) return;
-        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape' });
-
         if (typeof doc.autoTable !== 'function') {
             showError("La librería PDF (autoTable) aún no está lista. Intente de nuevo en unos segundos.");
             return;
         }
-
         const schema = tableSchemas[currentTable];
-
         const body = registros.map(row => {
             return schema.dbReadFields.map(field => {
                 let cellData = row[field] || '';
@@ -400,7 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return cellData;
             });
         });
-
         doc.autoTable({
             head: [schema.columnNames],
             body: body,
@@ -413,12 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         doc.save(`registros_${currentTable}.pdf`);
-    }
-    
+    }   
     function exportPrint() {
         const registros = getSelectedData();
         if (registros.length === 0) return;
-
         const schema = tableSchemas[currentTable];
         let html = `
             <style>
@@ -452,8 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `).join('')}
                 </tbody>
             </table>
-        `;
-        
+        `;      
         const printWindow = window.open('', '_blank');
         if (printWindow) {
             printWindow.document.write(html);
@@ -466,7 +409,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Funciones de Utilidad (comunes) ---
     function showLoading(isLoading) {
         if(loadingSpinner) loadingSpinner.style.display = isLoading ? 'block' : 'none';
     }
@@ -482,6 +424,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
 }); // Fin de DOMContentLoaded
 
