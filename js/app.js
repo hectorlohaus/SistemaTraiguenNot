@@ -15,11 +15,11 @@ const tableSchemas = {
         columnNames: ['Número', 'Fecha', 'N° Rep (mm-yyyy)', 'Nombre de los contratantes', 'Acto o Contrato', 'Abogado Redactor', 'N° Agregado', 'Ingresado'],
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
-            { id: 'n_rep', label: 'N° Rep (mm-yyyy)', type: 'text', span: 1, required: false, placeholder: 'Ej: 05-2025' },
+            { id: 'n_rep', label: 'N° Rep (mm-yyyy)', type: 'text', span: 1, required: true, placeholder: 'Ej: 05-2025' },
             { id: 'nombre_contratantes', label: 'Nombre de los contratantes', type: 'text', span: 2, required: true },
-            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 1, required: false },
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 1, required: true },
             { id: 'abogado_redactor', label: 'Abogado Redactor', type: 'text', span: 1, required: true },
-            { id: 'n_agregado', label: 'N° Agregado', type: 'text', span: 1, required: false }
+            { id: 'n_agregado', label: 'N° Agregado', type: 'text', span: 1, required: true }
         ],
         // CAMBIO: Se actualizan las columnas de filtro
         filterColumns: ['nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado', 'n_rep']
@@ -30,12 +30,12 @@ const tableSchemas = {
         columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
-            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: false },
-            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: false },
-            { id: 'hora', label: 'Hora', type: 'time', span: 1, required: false },
-            { id: 'dia', label: 'Día', type: 'text', span: 1, required: false, placeholder: 'Ej: 01, 23...' },
-            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: false, placeholder: 'Ej: Enero, 05...' },
-            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: false },
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: true },
+            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: true },
+            { id: 'hora', label: 'Hora', type: 'time', span: 1, required: true },
+            { id: 'dia', label: 'Día', type: 'text', span: 1, required: true, placeholder: 'Ej: 01, 23...' },
+            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: true, placeholder: 'Ej: Enero, 05...' },
+            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: true },
             { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: false }
         ],
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
