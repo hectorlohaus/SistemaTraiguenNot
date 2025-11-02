@@ -11,20 +11,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     
-    <!-- Librerías (CAMBIO: URLs actualizadas a jsdelivr) -->
+    <!-- Librerías -->
     <script src="https://cdn.tailwindcss.com" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     
-    <!-- Nuestros archivos (con nuevas rutas) -->
+    <!-- Nuestros archivos -->
     <link rel="stylesheet" href="css/style.css">
     <script> const isAdmin = false; </script>
     <script src="js/app.js" defer></script> 
 </head>
 
 <body class="bg-gray-50 font-sans antialiased">
-    <!-- ... El resto del body es idéntico ... -->
     <!-- =========== VISTA DE LA APLICACIÓN =========== -->
     <div id="app-view" class="container mx-auto p-4 md:p-8">
         
@@ -49,13 +48,12 @@
 
         <!-- Formulario de Nuevo Registro (ELIMINADO EN VISTA DE INVITADO) -->
 
-        <!-- Controles de la Tabla -->
+        <!-- CAMBIO: Controles de la Tabla (Buscador con botón) -->
         <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-            
-            <!-- CAMBIO: Contenedor para Búsqueda con botón -->
-            <div class="flex w-full md:w-auto">
-                <input type="text" id="filtro-busqueda" placeholder="Buscar..." class="w-full md:w-80 px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                <button id="btn-buscar" class="py-2 px-4 bg-blue-700 text-white font-medium rounded-r-md shadow-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+            <!-- Campo de búsqueda y botón agrupados -->
+            <div class="flex w-full md:w-1/3">
+                <input type="text" id="filtro-busqueda" placeholder="Buscar..." class="w-full px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-gray-800 focus:border-gray-800">
+                <button id="btn-buscar" class="py-2 px-4 bg-blue-700 text-white font-semibold rounded-r-lg shadow-md hover:bg-blue-800">
                     Buscar
                 </button>
             </div>
@@ -85,6 +83,21 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- =========== NUEVO: Controles de Paginación =========== -->
+        <div id="pagination-controls" class="flex justify-between items-center mt-4" style="display: none;">
+            <span id="pagination-status" class="text-sm text-gray-700">Mostrando 1-20 de 100 registros</span>
+            <div class="flex gap-2">
+                <button id="btn-prev" class="py-2 px-4 bg-gray-300 text-gray-800 font-medium rounded-lg shadow-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
+                    &lt; Anterior
+                </button>
+                <button id="btn-next" class="py-2 px-4 bg-gray-300 text-gray-800 font-medium rounded-lg shadow-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Siguiente &gt;
+                </button>
+            </div>
+        </div>
+
     </div>
 </body>
 </html>
+
