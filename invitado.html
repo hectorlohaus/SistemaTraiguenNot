@@ -9,7 +9,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- Librerías -->
     <script src="https://cdn.tailwindcss.com" defer></script>
@@ -23,81 +23,107 @@
     <script src="js/app.js" defer></script> 
 </head>
 
-<body class="bg-gray-50 font-sans antialiased">
-    <!-- =========== VISTA DE LA APLICACIÓN =========== -->
-    <div id="app-view" class="container mx-auto p-4 md:p-8">
+<body class="bg-slate-50 font-sans antialiased text-slate-800">
+
+    <!-- Layout Principal -->
+    <div id="app-view" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <header class="flex flex-col md:flex-row justify-between items-center mb-6 pb-4 border-b border-gray-300">
-            <div class="mb-4 md:mb-0">
-                <h1 class="text-3xl font-bold font-serif text-gray-800">Sistema Notaria Traiguen</h1>
-                <h2 class="text-2xl font-semibold text-gray-700" id="app-title">Registros (Modo Invitado)</h2>
+        <!-- Header -->
+        <header class="mb-8 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-2xl font-bold font-serif text-slate-900 leading-tight">Sistema Notaria Traiguen</h1>
+                <p class="text-slate-500 mt-1 flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 rounded-full bg-blue-400"></span>
+                    <span id="app-title">Consulta de Registros (Modo Invitado)</span>
+                </p>
             </div>
-            <!-- No hay botón de logout -->
         </header>
 
-        <div class="mb-4 border-b border-gray-200">
-            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button id="btn-propiedad" class="tab-button border-gray-800 text-gray-800 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+        <!-- Navegación (Tabs) -->
+        <div class="mb-6">
+            <nav class="flex space-x-1 bg-slate-200 p-1 rounded-xl w-fit" aria-label="Tabs">
+                <button id="btn-propiedad" class="px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     Libro de Propiedad
                 </button>
-                <button id="btn-sociedad" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                <button id="btn-sociedad" class="px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     Libro de Sociedad
                 </button>
             </nav>
         </div>
 
-        <!-- Formulario de Nuevo Registro (ELIMINADO EN VISTA DE INVITADO) -->
-
-        <!-- CAMBIO: Controles de la Tabla (Buscador con botón) -->
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-            <!-- Campo de búsqueda y botón agrupados -->
-            <div class="flex w-full md:w-1/3">
-                <input type="text" id="filtro-busqueda" placeholder="Buscar..." class="w-full px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-gray-800 focus:border-gray-800">
-                <button id="btn-buscar" class="py-2 px-4 bg-blue-700 text-white font-semibold rounded-r-lg shadow-md hover:bg-blue-800">
+        <!-- Barra de Herramientas (Búsqueda y Acciones) -->
+        <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
+            <!-- Búsqueda -->
+            <div class="flex w-full lg:w-1/2 relative shadow-sm rounded-lg">
+                <div class="relative flex-grow focus-within:z-10">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input type="text" id="filtro-busqueda" class="block w-full pl-10 rounded-l-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2.5" placeholder="Buscar por nombre, tipo, RUT...">
+                </div>
+                <button id="btn-buscar" class="-ml-px relative inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     Buscar
                 </button>
             </div>
-
-            <div class="flex gap-2 flex-wrap">
-                <button id="btn-print" class="py-2 px-4 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:bg-gray-600">
-                    Imprimir Selección
+            
+            <!-- Botones de Acción -->
+            <div class="flex gap-3 w-full lg:w-auto justify-end">
+                <button id="btn-print" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Imprimir
                 </button>
-                <button id="btn-pdf" class="py-2 px-4 bg-blue-700 text-white font-medium rounded-lg shadow-md hover:bg-blue-800">
-                    Exportar PDF Selección
+                <button id="btn-pdf" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    PDF
                 </button>
             </div>
         </div>
 
-        <!-- Mensajes de Carga y Error -->
-        <div id="loading-spinner" class="text-center p-4">Cargando datos...</div>
-        <div id="error-message" class="text-center p-4 bg-red-100 text-red-700 rounded-lg"></div>
-
-        <!-- Tabla de Datos -->
-        <div class="w-full overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200">
-            <table class="min-w-full divide-y divide-gray-200" id="data-table">
-                <thead class="bg-gray-50" id="table-header">
-                    <!-- La cabecera se generará aquí con JavaScript -->
-                </thead>
-                <tbody id="table-body" class="bg-white divide-y divide-gray-200">
-                    <!-- Las filas se insertarán aquí con JavaScript -->
-                </tbody>
-            </table>
+        <!-- Estado -->
+        <div id="loading-spinner" class="py-8 text-center">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+            <p class="mt-2 text-slate-500 text-sm">Cargando registros...</p>
+        </div>
+        <div id="error-message" class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <span id="error-text"></span>
         </div>
 
-        <!-- =========== NUEVO: Controles de Paginación =========== -->
-        <div id="pagination-controls" class="flex justify-between items-center mt-4" style="display: none;">
-            <span id="pagination-status" class="text-sm text-gray-700">Mostrando 1-20 de 100 registros</span>
-            <div class="flex gap-2">
-                <button id="btn-prev" class="py-2 px-4 bg-gray-300 text-gray-800 font-medium rounded-lg shadow-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
-                    &lt; Anterior
-                </button>
-                <button id="btn-next" class="py-2 px-4 bg-gray-300 text-gray-800 font-medium rounded-lg shadow-md hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Siguiente &gt;
-                </button>
+        <!-- Tabla -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full w-full" id="data-table">
+                    <thead id="table-header">
+                        <!-- JS -->
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación -->
+            <div id="pagination-controls" class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                <span id="pagination-status" class="text-sm text-slate-600">Cargando...</span>
+                <div class="flex gap-2">
+                    <button id="btn-prev" class="px-4 py-2 border border-slate-300 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Anterior
+                    </button>
+                    <button id="btn-next" class="px-4 py-2 border border-slate-300 bg-white text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Siguiente
+                    </button>
+                </div>
             </div>
         </div>
 
     </div>
 </body>
 </html>
-

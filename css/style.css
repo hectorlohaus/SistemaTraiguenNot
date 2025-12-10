@@ -1,20 +1,59 @@
 /* actualizado */
 
-/* Define la fuente Serif para títulos y la Sans-Serif para el cuerpo */
+/* Fuentes */
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6, #app-title {
     font-family: 'Merriweather', serif;
 }
 
-
-/* Oculta vistas y elementos antes de que JS decida mostrarlos */
-#app-view, #loading-spinner, #error-message {
+/* Utilidades */
+/* CAMBIO: Se quitó #error-message de aquí para permitir que JS lo muestre */
+#app-view, #loading-spinner {
     display: none;
 }
 
 [v-cloak] { 
     display: none; 
+}
+
+/* Scrollbar personalizado sutil */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Ajustes de impresión */
+@media print {
+    body {
+        background-color: white;
+    }
+    #form-container, #pagination-controls, .no-print {
+        display: none !important;
+    }
+    .shadow-lg, .shadow-md, .shadow-sm {
+        box-shadow: none !important;
+    }
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+    th, td {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+    }
 }

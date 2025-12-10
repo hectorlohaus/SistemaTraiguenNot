@@ -11,7 +11,7 @@ if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
 // --- Lógica de la página de Login ---
 document.addEventListener('DOMContentLoaded', () => {
     
-    // CAMBIO: Inicializa Supabase AQUÍ, dentro de DOMContentLoaded
+    // Inicializa Supabase
     if (!window.supabase) {
         alert("Error crítico: La librería de Supabase no se cargó.");
         return;
@@ -22,26 +22,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnGuest = document.getElementById('btn-guest');
     const emailEl = document.getElementById('email');
     const passwordEl = document.getElementById('password');
-    const errorEl = document.getElementById('error-message');
+    const errorMessageContainer = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
 
     // 1. Iniciar Sesión como Admin
     btnLogin.addEventListener('click', async () => {
         const email = emailEl.value;
         const password = passwordEl.value;
 
+        // Limpiar errores previos
+        showError(null);
+
         if (!email || !password) {
             showError("Por favor, ingrese email y contraseña.");
             return;
         }
 
-        btnLogin.textContent = "Ingresando...";
+        // Estado de carga
+        const originalText = btnLogin.textContent;
+        btnLogin.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Ingresando...`;
         btnLogin.disabled = true;
 
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
-            showError('Error: ' + error.message);
-            btnLogin.textContent = "Iniciar Sesión (Admin)";
+            console.error('Error de login completo:', error);
+            
+            const msg = (error.message || '').toLowerCase();
+            let userMessage = 'Ocurrió un error al iniciar sesión.';
+            
+            if (msg.includes('invalid login credentials') || msg.includes('invalid login')) {
+                userMessage = 'Correo o contraseña incorrectos.';
+            } else if (msg.includes('email not confirmed')) {
+                userMessage = 'El correo electrónico no ha sido confirmado.';
+            } else if (msg.includes('too many requests')) {
+                userMessage = 'Demasiados intentos. Intente más tarde.';
+            } else if (error.message) {
+                userMessage = `Error: ${error.message}`; 
+            }
+
+            showError(userMessage);
+            
+            // Restaurar botón
+            btnLogin.innerHTML = "Iniciar Sesión (Admin)";
             btnLogin.disabled = false;
         } else {
             // ¡Éxito! Redirige a la app de admin
@@ -51,13 +74,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Entrar como Invitado
     btnGuest.addEventListener('click', () => {
-        // Redirige a la app de invitado
         window.location.href = 'invitado.html';
     });
 
+    // Función para mostrar/ocultar errores con estilo robusto
     function showError(message) {
-        errorEl.textContent = message;
-        errorEl.classList.remove('hidden');
+        if (message) {
+            if (errorText) errorText.textContent = message;
+            if (errorMessageContainer) {
+                // CAMBIO: Forzar visibilidad anulando estilo inline y clases hidden
+                errorMessageContainer.classList.remove('hidden');
+                errorMessageContainer.style.display = 'flex'; 
+                
+                // Animación simple de entrada
+                errorMessageContainer.classList.add('animate-pulse');
+                setTimeout(() => errorMessageContainer.classList.remove('animate-pulse'), 500);
+            } else {
+                alert(message);
+            }
+        } else {
+            if (errorMessageContainer) {
+                errorMessageContainer.classList.add('hidden');
+                errorMessageContainer.style.display = 'none'; // Re-ocultar forzosamente
+            }
+            if (errorText) errorText.textContent = '';
+        }
+    }
+    
+    // Permitir "Enter" para enviar
+    if (passwordEl) {
+        passwordEl.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') btnLogin.click();
+        });
     }
 });
-

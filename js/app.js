@@ -1,4 +1,6 @@
-const SUPABASE_URL = 'https://itnjnoqcppkvzqlbmyrq.supabase.co';
+// actualizado
+// --- PASO 1: Configuración de Supabase ---
+const SUPABASE_URL = 'https://itnjnoqcppkvzqlbmyrq.supabase.co'; // TODO: Reemplaza si es necesario
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bmpub3FjcHBrdnpxbGJteXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1ODczODEsImV4cCI6MjA3NzE2MzM4MX0.HP2ChKbP4O5YWu73I6UYgLoH2O80rMcJiWdZRSTYrV8'; // TODO: Reemplaza si es necesario
 
 if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
@@ -10,18 +12,16 @@ if (SUPABASE_URL === 'TU_SUPABASE_URL' || !SUPABASE_URL) {
 const tableSchemas = {
     'registros_propiedad': {
         tableName: 'Libro de Propiedad',
-        // CAMBIO: Se añaden nuevos campos y se reemplazan los antiguos
         dbReadFields: ['id', 'fecha', 'n_rep', 'nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado', 'created_at'],
         columnNames: ['Número', 'Fecha', 'N° Rep (mm-yyyy)', 'Nombre de los contratantes', 'Acto o Contrato', 'Abogado Redactor', 'N° Agregado', 'Ingresado'],
         formFields: [
             { id: 'fecha', label: 'Fecha', type: 'date', span: 1, required: true },
-            { id: 'n_rep', label: 'N° Rep (mm-yyyy)', type: 'text', span: 1, required: true, placeholder: 'Ej: 05-2025' },
+            { id: 'n_rep', label: 'N° Rep (mm-yyyy)', type: 'text', span: 1, required: false, placeholder: 'Ej: 05-2025' },
             { id: 'nombre_contratantes', label: 'Nombre de los contratantes', type: 'text', span: 2, required: true },
-            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 1, required: true },
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 1, required: false },
             { id: 'abogado_redactor', label: 'Abogado Redactor', type: 'text', span: 1, required: true },
-            { id: 'n_agregado', label: 'N° Agregado', type: 'text', span: 1, required: true }
+            { id: 'n_agregado', label: 'N° Agregado', type: 'text', span: 1, required: false }
         ],
-        // CAMBIO: Se actualizan las columnas de filtro
         filterColumns: ['nombre_contratantes', 'acto_o_contrato', 'abogado_redactor', 'n_agregado', 'n_rep']
     },
     'movimientos_sociedad': {
@@ -30,12 +30,12 @@ const tableSchemas = {
         columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Día', 'Mes', 'Registro Parcial', 'Observaciones', 'Ingresado'],
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
-            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: true },
-            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: true },
-            { id: 'hora', label: 'Hora', type: 'time', span: 1, required: true },
-            { id: 'dia', label: 'Día', type: 'text', span: 1, required: true, placeholder: 'Ej: 01, 23...' },
-            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: true, placeholder: 'Ej: Enero, 05...' },
-            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: true },
+            { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text', span: 2, required: false },
+            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text', span: 1, required: false },
+            { id: 'hora', label: 'Hora', type: 'time', span: 1, required: false },
+            { id: 'dia', label: 'Día', type: 'text', span: 1, required: false, placeholder: 'Ej: 01, 23...' },
+            { id: 'mes', label: 'Mes', type: 'text', span: 1, required: false, placeholder: 'Ej: Enero, 05...' },
+            { id: 'registro_parcial', label: 'Registro Parcial', type: 'text', span: 1, required: false },
             { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 2, required: false }
         ],
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
@@ -44,12 +44,8 @@ const tableSchemas = {
 
 // --- Variables Globales ---
 let currentTable = 'registros_propiedad'; // Tabla por defecto
-// 'isAdmin' se define en el HTML (app.html o invitado.html)
-
-// --- NUEVO: Variables de Paginación ---
 let currentPage = 1;
-const recordsPerPage = 20; // Mostrar 20 registros por página
-
+const recordsPerPage = 20;
 
 // --- Lógica Principal ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,28 +57,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
     // --- Referencias a Elementos del DOM ---
     const appView = document.getElementById('app-view');
     const appTitle = document.getElementById('app-title');
-
     const formContainer = document.getElementById('form-container');
     const btnLogout = document.getElementById('btn-logout');
     const form = document.getElementById('form-nuevo-registro');
     const dynamicFormFields = document.getElementById('dynamic-form-fields');
-
     const btnPropiedad = document.getElementById('btn-propiedad');
     const btnSociedad = document.getElementById('btn-sociedad');
     const tableHeader = document.getElementById('table-header');
     const tableBody = document.getElementById('table-body');
     const filtroBusqueda = document.getElementById('filtro-busqueda');
+    const btnBuscar = document.getElementById('btn-buscar');
     const loadingSpinner = document.getElementById('loading-spinner');
     const errorMessage = document.getElementById('error-message');
-
-    // CAMBIO: Referencia al botón de búsqueda
-    const btnBuscar = document.getElementById('btn-buscar');
-
-    // --- NUEVO: Referencias a Paginación ---
     const paginationControls = document.getElementById('pagination-controls');
     const paginationStatus = document.getElementById('pagination-status');
     const btnPrev = document.getElementById('btn-prev');
@@ -97,23 +86,21 @@ document.addEventListener('DOMContentLoaded', () => {
         btnSociedad.addEventListener('click', () => switchTable('movimientos_sociedad'));
     }
 
-    // CAMBIO: Lógica de búsqueda movida a un botón y tecla "Enter"
     if (btnBuscar) {
         btnBuscar.addEventListener('click', () => {
-            currentPage = 1; // Resetea a la página 1 al buscar
+            currentPage = 1; 
             loadData();
         });
     }
     if (filtroBusqueda) {
         filtroBusqueda.addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
-                currentPage = 1; // Resetea a la página 1 al buscar
+                currentPage = 1; 
                 loadData();
             }
         });
     }
 
-    // 1.3. Funciones de Exportación (PDF e Imprimir)
     const btnPdf = document.getElementById('btn-pdf');
     const btnPrint = document.getElementById('btn-print');
 
@@ -134,26 +121,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 1.5. Lógica Específica de ADMIN (Logout y Guardar)
-    if (isAdmin && btnLogout) {
+    if (isAdmin && btnLogout) { 
         btnLogout.addEventListener('click', async () => {
             await supabase.auth.signOut();
         });
     }
-
+    
     if (isAdmin && form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const saveButton = document.getElementById('btn-save');
             if (saveButton) saveButton.disabled = true;
+            saveButton.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Guardando...`;
 
             await saveNewRecord(); 
-
-            if (saveButton) saveButton.disabled = false;
+            
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Guardar Registro';
+            }
         });
     }
     
-    // --- NUEVO: Listeners de Paginación ---
     if (btnPrev) {
         btnPrev.addEventListener('click', () => {
             if (currentPage > 1) {
@@ -164,14 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (btnNext) {
         btnNext.addEventListener('click', () => {
-            // La lógica de deshabilitar está en updatePagination
             currentPage++;
             loadData();
         });
     }
 
     // --- 2. MANEJO DE AUTENTICACIÓN Y CARGA INICIAL ---
-    let initialLoadCalled = false;
+    let initialLoadCalled = false; 
+    
     supabase.auth.onAuthStateChange((event, session) => {
         if (isAdmin) {
             if (event === 'SIGNED_OUT') {
@@ -198,53 +187,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
     // --- 3. FUNCIONES DE LA APLICACIÓN ---
 
     function switchTable(tableName) {
         currentTable = tableName;
-        currentPage = 1; // Resetea la página al cambiar de pestaña
+        currentPage = 1; 
 
+        // Estilos para pestañas activas/inactivas
         [btnPropiedad, btnSociedad].forEach(btn => {
-            if (btn) {
-                btn.classList.remove('border-gray-800', 'text-gray-800');
+            if(btn) {
+                btn.classList.remove('border-blue-600', 'text-blue-600', 'bg-blue-50');
                 btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
             }
         });
-
+        
         const activeBtn = (tableName === 'registros_propiedad') ? btnPropiedad : btnSociedad;
-        if (activeBtn) {
-            activeBtn.classList.add('border-gray-800', 'text-gray-800');
-            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+        if(activeBtn) {
+            activeBtn.classList.add('border-blue-600', 'text-blue-600', 'bg-blue-50');
+            activeBtn.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
         }
 
         updateTableUI();
     }
-
-    // --- CAMBIO GRANDE: loadData() ahora usa paginación ---
+    
     async function loadData() {
         showLoading(true);
         showError(null);
-
+        
         const schema = tableSchemas[currentTable];
         const filtro = filtroBusqueda ? filtroBusqueda.value : '';
-
-        // 1. Calcular el rango de la página
+        
         const from = (currentPage - 1) * recordsPerPage;
         const to = from + recordsPerPage - 1;
-
-        // 2. Preparar la consulta base
+        
         let query = supabase.from(currentTable);
-
-        // 3. Preparar la consulta para OBTENER EL CONTEO TOTAL (con filtros)
         let countQuery = query.select('*', { count: 'exact', head: true });
-
-        // 4. Preparar la consulta para OBTENER LOS DATOS (con filtros y rango)
+        
         let dataQuery = query.select(schema.dbReadFields.join(','))
             .order('id', { ascending: false })
             .range(from, to);
-
-        // 5. Aplicar filtros si existen (a AMBAS consultas)
+        
         if (filtro && schema.filterColumns.length > 0) {
             const filtroQuery = schema.filterColumns
                 .map(col => `${col}.ilike.%${filtro}%`)
@@ -252,28 +234,26 @@ document.addEventListener('DOMContentLoaded', () => {
             countQuery = countQuery.or(filtroQuery);
             dataQuery = dataQuery.or(filtroQuery);
         }
-
-        // 6. Ejecutar ambas consultas
+        
         const { data, error } = await dataQuery;
         const { count, error: countError } = await countQuery;
-
+        
         showLoading(false);
-
+        
         if (error || countError) {
             const e = error || countError;
             showError('Error al cargar datos: ' + e.message);
             console.error(e);
             return;
         }
-
-        // 7. Renderizar la tabla y actualizar los controles de paginación
+        
         renderTable(data);
         updatePagination(count);
     }
 
     function updateTableUI() {
         const schema = tableSchemas[currentTable];
-
+        
         if (appTitle) {
             if (isAdmin) {
                 appTitle.textContent = schema.tableName;
@@ -281,13 +261,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 appTitle.textContent = `${schema.tableName} (Invitado)`;
             }
         }
-
+       
         if (tableHeader) {
-            tableHeader.innerHTML = `<tr><th class="p-3 w-12"><input type="checkbox" id="select-all-checkbox" class="rounded border-gray-300"></th></tr>`;
+            // Estilos de Cabecera mejorados
+            tableHeader.innerHTML = `<tr class="bg-slate-100 text-slate-600 uppercase text-xs leading-normal">
+                <th class="py-3 px-6 text-left w-10"><input type="checkbox" id="select-all-checkbox" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300"></th>
+            </tr>`;
             const headerRow = tableHeader.querySelector('tr');
             if (headerRow) {
                 schema.columnNames.forEach(name => {
-                    headerRow.innerHTML += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${name}</th>`;
+                    headerRow.innerHTML += `<th class="py-3 px-6 text-left font-bold tracking-wider">${name}</th>`;
                 });
             }
         }
@@ -295,29 +278,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isAdmin && dynamicFormFields) {
             renderForm(schema);
         }
-
-        loadData(); // Carga los datos (ahora paginados)
+        
+        loadData();
     }
-
+    
     function renderForm(schema) {
         if (!dynamicFormFields) return;
-
+        
         dynamicFormFields.innerHTML = '';
         schema.formFields.forEach(field => {
             let inputHtml = '';
             const requiredAttr = field.required ? 'required' : '';
-
+            
+            // Estilos de Input mejorados
+            const baseInputClass = "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border transition duration-150 ease-in-out";
+            
             if (field.type === 'textarea') {
-                inputHtml = `<textarea id="form-${field.id}" ${requiredAttr} class="mt-1 block w-full border border-gray-300 rounded-md p-2" rows="2"></textarea>`;
+                inputHtml = `<textarea id="form-${field.id}" ${requiredAttr} class="${baseInputClass}" rows="3"></textarea>`;
             } else {
                 inputHtml = `<input type="${field.type}" id="form-${field.id}" ${requiredAttr} 
                                 placeholder="${field.placeholder || ''}" 
-                                class="mt-1 block w-full border border-gray-300 rounded-md p-2">`;
+                                class="${baseInputClass}">`;
             }
-
+            
             dynamicFormFields.innerHTML += `
                 <div class="col-span-1 md:col-span-${field.span || 1}">
-                    <label for="form-${field.id}" class="block text-sm font-medium text-gray-700">
+                    <label for="form-${field.id}" class="block text-sm font-medium text-gray-700 mb-1">
                         ${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}
                     </label>
                     ${inputHtml}
@@ -328,48 +314,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTable(data) {
         if (!tableBody) return;
-
+        
         tableBody.innerHTML = '';
         if (!data || data.length === 0) {
-            // Si no hay datos Y estamos en la página 1, mostrar "No hay registros".
             if (currentPage === 1) {
-                 tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-4 text-gray-500">No hay registros.</td></tr>';
+                 tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-8 text-gray-500 bg-white">No hay registros encontrados.</td></tr>';
             } else {
-                 tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-4 text-gray-500">No hay más registros en esta página.</td></tr>';
+                 tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-8 text-gray-500 bg-white">No hay más registros en esta página.</td></tr>';
             }
             return;
         }
 
         const schema = tableSchemas[currentTable];
-
+        
         data.forEach(row => {
+            // Estilos de Fila y Celda mejorados
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="p-3"><input type="checkbox" class="row-checkbox rounded border-gray-300"></td>`;
-
+            tr.className = "border-b border-gray-200 hover:bg-slate-50 transition duration-150 ease-in-out bg-white";
+            
+            tr.innerHTML = `<td class="py-3 px-6 text-left whitespace-nowrap">
+                <input type="checkbox" class="row-checkbox rounded text-blue-600 focus:ring-blue-500 border-gray-300">
+            </td>`;
+            
             schema.dbReadFields.forEach(field => {
                 let cellData = row[field];
                 if (field === 'created_at' || field === 'fecha') {
-                    if (cellData) {
-                        cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    if(cellData) {
+                        // Intentar corregir zona horaria o fecha simple
+                        const dateObj = new Date(cellData);
+                        // Asegurar que se muestre bien (evitar desfase de zona horaria básico)
+                        const userTimezoneOffset = dateObj.getTimezoneOffset() * 60000;
+                        const correctedDate = new Date(dateObj.getTime() + userTimezoneOffset); 
+                        cellData = correctedDate.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
                     }
                 }
-                tr.innerHTML += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${cellData || ''}</td>`;
+                tr.innerHTML += `<td class="py-3 px-6 text-left whitespace-nowrap text-sm text-gray-700">${cellData || '<span class="text-gray-300">-</span>'}</td>`;
             });
-
+            
             const checkbox = tr.querySelector('.row-checkbox');
-            if (checkbox) {
+            if(checkbox) {
                 checkbox.dataset.registro = JSON.stringify(row);
             }
             tableBody.appendChild(tr);
         });
     }
-
-    // --- CAMBIO: saveNewRecord() ahora muestra notificación toast ---
+    
     async function saveNewRecord() {
         const schema = tableSchemas[currentTable];
         const newRow = {};
         let isValid = true;
-
+        
         schema.formFields.forEach(field => {
             const input = document.getElementById(`form-${field.id}`);
             if (input) {
@@ -377,30 +371,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     newRow[field.id] = input.value;
                 } else if (field.required) {
                     isValid = false;
+                    // Resaltar error visualmente
+                    input.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                    // Remover clase de error al escribir
+                    input.addEventListener('input', () => {
+                        input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                    }, {once: true});
                 }
             }
         });
 
         if (!isValid) {
             showError('Por favor, complete todos los campos requeridos (*).');
-            return;
+            return; 
         }
-
-        // CAMBIO: Se añade .select('id') para obtener el ID del nuevo registro
+        
         const { data, error } = await supabase.from(currentTable).insert([newRow]).select('id');
-
+        
         if (error) {
             showError('Error al guardar: ' + error.message);
         } else {
             showError(null); 
-            if (form) form.reset();
-            // NUEVO: Mostrar notificación de éxito
+            if(form) form.reset();
+            
             if (data && data[0]) {
                 showToast(`Registro N° ${data[0].id} guardado con éxito.`);
             } else {
                 showToast(`Registro guardado con éxito.`);
             }
-            // Recargar datos (se irá a la página 1 por defecto, lo cual es bueno)
             currentPage = 1;
             loadData();
         }
@@ -412,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
             registros.push(JSON.parse(cb.dataset.registro));
         });
-
+        
         if (registros.length === 0) {
             showError('Por favor, seleccione al menos un registro.');
             setTimeout(() => showError(null), 3000);
@@ -428,9 +426,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const registros = getSelectedData();
         if (registros.length === 0) return;
-
+        
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'landscape' });
+        // CAMBIO: Configuración explícita A4 Landscape y unidad en mm para precisión
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
         if (typeof doc.autoTable !== 'function') {
             showError("La librería PDF (autoTable) aún no está lista. Intente de nuevo en unos segundos.");
@@ -438,34 +437,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const schema = tableSchemas[currentTable];
+        const title = schema.tableName;
+        const generationDate = new Date().toLocaleDateString('es-CL');
 
         const body = registros.map(row => {
             return schema.dbReadFields.map(field => {
                 let cellData = row[field] || '';
                 if (field === 'created_at' || field === 'fecha') {
-                    if (cellData) {
-                        cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    if(cellData) {
+                        const dateObj = new Date(cellData);
+                        const userTimezoneOffset = dateObj.getTimezoneOffset() * 60000;
+                        const correctedDate = new Date(dateObj.getTime() + userTimezoneOffset);
+                        cellData = correctedDate.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
                     }
                 }
                 return cellData;
             });
         });
 
-        // CAMBIO: Añadido startY para dar espacio al título
         doc.autoTable({
             head: [schema.columnNames],
             body: body,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [41, 41, 41] }, 
-            didDrawPage: (data) => {
-                doc.setFontSize(16);
-                doc.text(schema.tableName, data.settings.margin.left, 15);
+            // CAMBIO: Tema 'grid' para apariencia de reporte formal
+            theme: 'grid',
+            styles: { 
+                fontSize: 9, 
+                cellPadding: 3,
+                valign: 'middle',
+                font: 'helvetica',
+                lineWidth: 0.1,
+                lineColor: [203, 213, 225] // Slate-300
             },
-            startY: 20 // Deja 20 unidades de espacio para el título
+            headStyles: { 
+                fillColor: [15, 23, 42], // Slate-900 (Azul oscuro/Negro)
+                textColor: [255, 255, 255], // Blanco
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            alternateRowStyles: {
+                fillColor: [248, 250, 252] // Slate-50 (Gris muy claro)
+            },
+            margin: { top: 30 },
+            didDrawPage: (data) => {
+                // Título
+                doc.setFontSize(18);
+                doc.setTextColor(15, 23, 42);
+                doc.setFont("helvetica", "bold");
+                doc.text(title, data.settings.margin.left, 20);
+                
+                // Fecha
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(100, 116, 139); // Slate-500
+                doc.text(`Generado: ${generationDate}`, doc.internal.pageSize.width - data.settings.margin.right, 20, { align: 'right' });
+                
+                // Paginación (Pie de página)
+                const str = 'Página ' + doc.internal.getNumberOfPages();
+                doc.setFontSize(8);
+                doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
+            }
         });
         doc.save(`registros_${currentTable}.pdf`);
     }
-
+    
     function exportPrint() {
         const registros = getSelectedData();
         if (registros.length === 0) return;
@@ -493,8 +527,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${schema.dbReadFields.map(field => {
                                 let cellData = row[field] || '';
                                 if (field === 'created_at' || field === 'fecha') {
-                                    if (cellData) {
-                                        cellData = new Date(cellData).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                    if(cellData) {
+                                        const dateObj = new Date(cellData);
+                                        const userTimezoneOffset = dateObj.getTimezoneOffset() * 60000;
+                                        const correctedDate = new Date(dateObj.getTime() + userTimezoneOffset);
+                                        cellData = correctedDate.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
                                     }
                                 }
                                 return `<td>${cellData}</td>`;
@@ -504,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </tbody>
             </table>
         `;
-
+        
         const printWindow = window.open('', '_blank');
         if (printWindow) {
             printWindow.document.write(html);
@@ -519,11 +556,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Funciones de Utilidad (comunes) ---
     function showLoading(isLoading) {
-        if (loadingSpinner) loadingSpinner.style.display = isLoading ? 'block' : 'none';
+        if(loadingSpinner) loadingSpinner.style.display = isLoading ? 'block' : 'none';
     }
 
     function showError(message) {
-        if (errorMessage) {
+        if(errorMessage) {
             if (message) {
                 errorMessage.style.display = 'block';
                 errorMessage.textContent = message;
@@ -534,48 +571,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- NUEVO: Función para Notificación Toast ---
+    // CAMBIO: Actualizamos la función para que sepa mostrar el toast oculto por inline style
     function showToast(message) {
         const toast = document.getElementById('toast-success');
         const toastMessage = document.getElementById('toast-message');
         
-        // Solo intenta mostrar el toast si existe (solo en app.html)
         if (toast && toastMessage) {
             toastMessage.textContent = message;
-            toast.classList.remove('hidden', 'opacity-0');
-            toast.classList.add('opacity-100');
-
-            // Ocultar después de 3 segundos
+            
+            // 1. Mostrarlo anulando el display: none
+            toast.style.display = 'flex'; 
+            
+            // 2. Permitir un pequeño reflow para que la transición de opacidad funcione
             setTimeout(() => {
-                toast.classList.remove('opacity-100');
-                toast.classList.add('opacity-0');
+                toast.classList.remove('opacity-0', 'translate-y-2');
+                toast.classList.add('opacity-100', 'translate-y-0');
+            }, 10);
+
+            // 3. Ocultarlo después de 3 segundos
+            setTimeout(() => {
+                // Iniciar transición de salida
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-2');
                 
-                // Esperar a que termine la transición de opacidad para ocultarlo
+                // Esperar a que termine la transición para volver a poner display: none
                 setTimeout(() => {
-                    toast.classList.add('hidden');
-                }, 300); // 300ms debe coincidir con la duración de la transición
+                    toast.style.display = 'none';
+                }, 300); 
             }, 3000);
         }
     }
 
-    // --- NUEVO: Función para actualizar Paginación ---
     function updatePagination(totalCount) {
         if (!paginationControls || !paginationStatus || !btnPrev || !btnNext || totalCount === null) {
             if (paginationControls) paginationControls.style.display = 'none';
             return;
         }
 
-        // Ocultar controles si no hay registros
         if (totalCount === 0) {
             paginationControls.style.display = 'none';
             return;
         }
 
-        paginationControls.style.display = 'flex'; // Asegurarse de que sea visible
+        paginationControls.style.display = 'flex'; 
         
         const totalPages = Math.ceil(totalCount / recordsPerPage);
 
-        // Si solo hay una página, ocultar controles
         if (totalPages <= 1) {
              paginationControls.style.display = 'none';
              return;
@@ -586,9 +627,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         paginationStatus.textContent = `Mostrando ${fromRecord}-${toRecord} de ${totalCount} registros`;
 
-        // Actualizar estado de los botones
         btnPrev.disabled = (currentPage === 1);
         btnNext.disabled = (currentPage === totalPages);
+        
+        // Estilos visuales para botones deshabilitados
+        if(btnPrev.disabled) {
+            btnPrev.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            btnPrev.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        if(btnNext.disabled) {
+            btnNext.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            btnNext.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
     }
 
-}); // Fin de 
+}); // Fin de DOMContentLoaded
