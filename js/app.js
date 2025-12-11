@@ -49,7 +49,8 @@ const tableSchemas = {
             { id: 'dia', label: 'Día', type: 'text', span: 1, required: true, placeholder: 'Ej: 01' },
             { id: 'mes', label: 'Mes', type: 'text', span: 2, required: true, placeholder: 'Ej: Enero' },
             
-            { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 4, required: true }
+            // CAMBIO: required: false para observaciones
+            { id: 'observaciones', label: 'Observaciones', type: 'textarea', span: 4, required: false }
         ],
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'observaciones']
     }
