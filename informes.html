@@ -1,0 +1,228 @@
+<!-- 1 -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-R">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informes - Sistema Notaria Traiguen</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Librerías -->
+    <!-- CAMBIO: Se quitó 'defer' de Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    
+    <!-- Nuestros archivos (ORDEN IMPORTANTE) -->
+    <link rel="stylesheet" href="css/style.css">
+    <script> const isAdmin = true; </script>
+    <script src="js/config.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/services.js" defer></script>
+    <script src="js/app.js" defer></script> 
+</head>
+
+<body class="bg-slate-50 font-sans antialiased text-slate-800">
+
+    <!-- Toast Notification -->
+    <div id="toast-success" style="display: none;" class="fixed top-5 left-1/2 -translate-x-1/2 w-auto bg-emerald-600 text-white px-6 py-4 rounded-lg shadow-2xl z-50 transition-all duration-300 opacity-0 hidden transform translate-y-2 flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span id="toast-message" class="font-medium">Acción completada.</span>
+    </div>
+
+    <!-- Modal Confirmación -->
+    <div id="confirmation-modal" style="display: none;" class="fixed inset-0 bg-slate-900 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="relative p-6 border w-96 shadow-xl rounded-xl bg-white transform transition-all scale-100">
+            <div class="mt-2 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 mb-4">
+                    <svg class="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900" id="modal-title">Confirmar Acción</h3>
+                <div class="mt-3 px-2">
+                    <p class="text-sm text-slate-500" id="modal-message"></p>
+                </div>
+                <div class="mt-6 flex flex-col gap-3">
+                    <button id="btn-confirm-modal" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:text-sm transition-colors">
+                        Confirmar
+                    </button>
+                    <button id="btn-cancel-modal" class="w-full inline-flex justify-center rounded-lg border border-slate-300 shadow-sm px-4 py-2.5 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 sm:text-sm transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Principal -->
+    <div id="app-view" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Header con Navegación Centrada -->
+        <header class="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative">
+            <div class="flex items-center gap-6 flex-shrink-0">
+                <div>
+                    <h1 class="text-xl font-bold font-serif text-slate-900">Sistema Notaria Traiguen</h1>
+                    <p class="text-sm text-slate-500">Módulo de Informes</p>
+                </div>
+            </div>
+
+            <!-- Navegación Centrada -->
+            <nav class="hidden md:flex space-x-1 bg-slate-100 p-1 rounded-lg md:absolute md:left-1/2 md:-translate-x-1/2">
+                <a href="app.html" class="px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white transition-all">
+                    Registros
+                </a>
+                <a href="#" class="px-4 py-2 rounded-md text-sm font-medium text-blue-700 bg-white shadow-sm ring-1 ring-slate-200">
+                    Informes (Índices)
+                </a>
+            </nav>
+            
+            <button id="btn-logout" class="py-2 px-4 text-sm text-slate-600 hover:text-red-600 font-medium transition-colors flex-shrink-0">
+                Cerrar Sesión
+            </button>
+        </header>
+
+        <!-- Contenido de Informes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- Tarjeta 1: Repertorio Instrumentos -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold font-serif text-slate-800">Repertorio de Instrumentos Públicos</h2>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Libro 1</span>
+                </div>
+                <div class="p-6 space-y-6">
+                    
+                    <!-- Opción 1: Cierre de Día -->
+                    <div class="flex items-start gap-4">
+                        <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-slate-900">Cierre de Día</h3>
+                            <p class="text-xs text-slate-500 mt-1">Genera un certificado PDF con todos los registros ingresados hoy.</p>
+                            <button id="btn-cierre-inst" class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 w-full justify-center">
+                                Generar Cierre de Día
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100"></div>
+
+                    <!-- Opción 2: Índice General -->
+                    <div class="flex items-start gap-4">
+                        <div class="p-2 bg-blue-50 rounded-lg text-blue-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-slate-900">Índice General Mensual</h3>
+                            <p class="text-xs text-slate-500 mt-1">Genera un PDF ordenado alfabéticamente por apellido del contratante.</p>
+                            <button id="btn-indice-inst" class="mt-3 inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 w-full justify-center">
+                                Generar Índice
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100"></div>
+
+                    <!-- Opción 3: Exportar Excel Mensual (NUEVO) -->
+                    <div class="flex items-start gap-4">
+                        <div class="p-2 bg-green-50 rounded-lg text-green-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-slate-900">Excel Mensual</h3>
+                            <p class="text-xs text-slate-500 mt-1 mb-2">Descargar registros de un mes específico.</p>
+                            
+                            <div class="flex gap-2">
+                                <input type="month" id="month-excel-inst" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-xs px-2 py-1.5 border">
+                                <button id="btn-excel-month-inst" class="inline-flex items-center px-3 py-1.5 border border-green-600 text-xs font-medium rounded-lg text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 whitespace-nowrap">
+                                    Descargar
+                                </button>
+                            </div>
+                            
+                            <button id="btn-excel-inst" class="mt-2 w-full text-xs text-slate-500 hover:text-slate-700 underline text-center">
+                                O descargar base de datos completa
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Tarjeta 2: Repertorio Conservador -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold font-serif text-slate-800">Repertorio Conservador</h2>
+                    <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">Libro 2</span>
+                </div>
+                <div class="p-6 space-y-6">
+                    
+                    <!-- Opción 1: Cierre de Día -->
+                    <div class="flex items-start gap-4">
+                        <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-slate-900">Cierre de Día</h3>
+                            <p class="text-xs text-slate-500 mt-1">Genera un certificado PDF con todos los registros ingresados hoy.</p>
+                            <button id="btn-cierre-cons" class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 w-full justify-center">
+                                Generar Cierre de Día
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100"></div>
+
+                    <!-- NUEVO: Opción 2: Exportar Excel Mensual -->
+                    <div class="flex items-start gap-4">
+                        <div class="p-2 bg-green-50 rounded-lg text-green-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-slate-900">Excel Mensual</h3>
+                            <p class="text-xs text-slate-500 mt-1 mb-2">Descargar registros de un mes específico.</p>
+                            
+                            <div class="flex gap-2">
+                                <input type="month" id="month-excel-cons" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-xs px-2 py-1.5 border">
+                                <button id="btn-excel-month-cons" class="inline-flex items-center px-3 py-1.5 border border-green-600 text-xs font-medium rounded-lg text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 whitespace-nowrap">
+                                    Descargar
+                                </button>
+                            </div>
+
+                            <button id="btn-excel-cons" class="mt-2 w-full text-xs text-slate-500 hover:text-slate-700 underline text-center">
+                                O descargar base de datos completa
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Mensajes de Error (Oculto) -->
+        <div id="loading-spinner" class="py-8 text-center text-slate-500" style="display: none;">Procesando...</div>
+        <div id="error-message" class="mt-6 mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg hidden"></div>
+
+    </div>
+</body>
+</html>
