@@ -15,21 +15,65 @@ const BuscadorService = {
     init() {
         const btnSearch = document.getElementById('btn-adv-search');
         const btnClear = document.getElementById('btn-adv-clear');
-        const selectType = document.getElementById('adv-search-type');
+        
+        // NUEVOS BOTONES DE NAVEGACIÓN
+        const btnInst = document.getElementById('btn-adv-inst');
+        const btnCons = document.getElementById('btn-adv-cons');
         
         if (btnSearch) btnSearch.addEventListener('click', () => this.executeSearch());
         if (btnClear) btnClear.addEventListener('click', () => this.clearFilters());
         
-        if (selectType) {
-            selectType.addEventListener('change', (e) => {
-                this.state.currentTable = e.target.value;
-                this.renderFilters();
-                // Limpiar resultados al cambiar de tabla
-                this.state.results = [];
-                this.renderResults();
-            });
-            // Inicializar filtros con la tabla por defecto
-            this.renderFilters();
+        // Listeners para los botones de cambio de tabla
+        if (btnInst && btnCons) {
+            btnInst.addEventListener('click', () => this.switchTable('repertorio_instrumentos'));
+            btnCons.addEventListener('click', () => this.switchTable('repertorio_conservador'));
+            
+            // Inicializar estilos
+            this.updateButtonStyles();
+        }
+
+        // Inicializar filtros con la tabla por defecto
+        this.renderFilters();
+    },
+
+    // Nueva función para cambiar de tabla y gestionar el estado
+    switchTable(tableName) {
+        this.state.currentTable = tableName;
+        
+        // Actualizar estado global si es necesario para exportaciones
+        if (typeof State !== 'undefined') State.currentTable = tableName;
+
+        // Resetear orden y resultados
+        this.state.sort = { field: 'id', ascending: false };
+        this.state.results = [];
+
+        // Renderizar UI
+        this.renderFilters();
+        this.renderResults();
+        this.updateButtonStyles();
+    },
+
+    // Actualiza visualmente los botones (Activo/Inactivo)
+    updateButtonStyles() {
+        const btnInst = document.getElementById('btn-adv-inst');
+        const btnCons = document.getElementById('btn-adv-cons');
+        if (!btnInst || !btnCons) return;
+
+        // Clases para estado Activo e Inactivo (mismo estilo que nav-registros)
+        const activeClass = ['bg-white', 'text-blue-700', 'shadow-sm', 'ring-1', 'ring-slate-200'];
+        const inactiveClass = ['text-slate-600', 'hover:text-slate-900', 'hover:bg-white/50'];
+
+        // Resetear clases base
+        const baseClasses = ['px-6', 'py-2.5', 'rounded-lg', 'text-sm', 'font-medium', 'transition-all', 'duration-200', 'focus:outline-none'];
+        btnInst.className = baseClasses.join(' ');
+        btnCons.className = baseClasses.join(' ');
+
+        if (this.state.currentTable === 'repertorio_instrumentos') {
+            btnInst.classList.add(...activeClass);
+            btnCons.classList.add(...inactiveClass);
+        } else {
+            btnCons.classList.add(...activeClass);
+            btnInst.classList.add(...inactiveClass);
         }
     },
 
@@ -128,7 +172,7 @@ const BuscadorService = {
         schema.columnNames.forEach((name, index) => {
             if (schema.hiddenColumns?.includes(index)) return;
             
-            // CAMBIO: Usar sortMap para determinar el campo de ordenamiento correcto
+            // Usar sortMap para determinar el campo de ordenamiento correcto
             const dbField = schema.sortMap ? schema.sortMap[index] : schema.dbReadFields[index];
             
             // Icono de orden

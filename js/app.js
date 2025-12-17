@@ -58,7 +58,7 @@ const App = {
         this.updateTabStyles();
     },
     
-    // Nueva función para manejar el cambio entre "Registros" y "Buscador Avanzado"
+    // Función para manejar el cambio entre "Registros" y "Buscador Avanzado" (App Principal)
     switchMainTab(tabName) {
         State.activeTab = tabName;
         
@@ -83,6 +83,46 @@ const App = {
         this.updateTabStyles();
     },
 
+    // NUEVA: Función específica para las pestañas de la página de Informes
+    initInformesTabs() {
+        const btnInformes = document.getElementById('btn-view-informes');
+        const btnBuscador = document.getElementById('btn-view-buscador');
+        const secInformes = document.getElementById('section-informes');
+        const secBuscador = document.getElementById('section-buscador');
+
+        if (!btnInformes || !btnBuscador) return;
+
+        const activeClass = ['bg-slate-200', 'text-slate-900'];
+        const inactiveClass = ['text-slate-600', 'hover:text-slate-900', 'hover:bg-white'];
+
+        const setTab = (isInformes) => {
+            if (isInformes) {
+                if(secInformes) secInformes.style.display = 'grid';
+                if(secBuscador) secBuscador.style.display = 'none';
+                
+                btnInformes.classList.add(...activeClass);
+                btnInformes.classList.remove(...inactiveClass);
+                
+                btnBuscador.classList.remove(...activeClass);
+                btnBuscador.classList.add(...inactiveClass);
+            } else {
+                if(secInformes) secInformes.style.display = 'none';
+                if(secBuscador) secBuscador.style.display = 'block';
+
+                btnBuscador.classList.add(...activeClass);
+                btnBuscador.classList.remove(...inactiveClass);
+                
+                btnInformes.classList.remove(...activeClass);
+                btnInformes.classList.add(...inactiveClass);
+                
+                if (typeof BuscadorService !== 'undefined') BuscadorService.renderFilters();
+            }
+        };
+
+        btnInformes.addEventListener('click', () => setTab(true));
+        btnBuscador.addEventListener('click', () => setTab(false));
+    },
+
     updateTabStyles() {
         // Estilos para los botones de libros (Propiedad/Sociedad)
         const activeClass = ['border-blue-600', 'text-blue-600', 'bg-blue-50'];
@@ -101,7 +141,7 @@ const App = {
             }
         }
         
-        // Estilos para los botones principales (Registros/Buscador)
+        // Estilos para los botones principales (Registros/Buscador) en App.html / Invitado.html
         const btnMainReg = document.getElementById('btn-main-registros');
         const btnMainBus = document.getElementById('btn-main-buscador');
         
@@ -160,6 +200,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         UI.init();
         if (typeof BuscadorService !== 'undefined') BuscadorService.init(); // Inicializar servicio de búsqueda si existe
         
+        // Inicializar pestañas de informes si estamos en esa página
+        App.initInformesTabs();
+
         // Lógica para ocultar elementos de administración si es Invitado
         if (typeof isAdmin !== 'undefined' && !isAdmin) {
             const cierreElements = document.querySelectorAll('[id^="btn-cierre-"]');
@@ -192,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (UI.els['btn-propiedad']) UI.els['btn-propiedad'].addEventListener('click', () => App.switchTable('repertorio_instrumentos'));
         if (UI.els['btn-sociedad']) UI.els['btn-sociedad'].addEventListener('click', () => App.switchTable('repertorio_conservador'));
 
-        // Listeners para las Pestañas Principales (Registros vs Buscador)
+        // Listeners para las Pestañas Principales (Registros vs Buscador) en App.html
         const btnMainReg = document.getElementById('btn-main-registros');
         const btnMainBus = document.getElementById('btn-main-buscador');
         

@@ -2,46 +2,33 @@
 // js/services.js
 // Lógica de negocio: Datos (Supabase) y Exportación (PDF/Excel/Print)
 
-// --- MÓDULO: Servicios de Datos ---
 const DataService = {
+    // ... (loadData, saveRecord, getNextRepertorio se mantienen iguales) ...
     async loadData(filtro = '') {
         const schema = SCHEMAS[State.currentTable];
         const from = (State.currentPage - 1) * CONFIG.RECORDS_PER_PAGE;
         const to = from + CONFIG.RECORDS_PER_PAGE - 1;
-        
         let query = State.supabase.from(State.currentTable);
         let countQuery = query.select('*', { count: 'exact', head: true });
         let dataQuery = query.select(schema.dbReadFields.join(',')).order('id', { ascending: false }).range(from, to);
-        
         if (filtro && schema.filterColumns.length > 0) {
             const filtroQuery = schema.filterColumns.map(col => `${col}.ilike.%${filtro}%`).join(',');
             countQuery = countQuery.or(filtroQuery); 
             dataQuery = dataQuery.or(filtroQuery);
         }
-        
         const { data, error } = await dataQuery;
         const { count, error: countError } = await countQuery;
-        
         if (error || countError) throw new Error((error || countError).message);
         return { data, count };
     },
-
     async saveRecord(record) {
         const { data, error } = await State.supabase.from(State.currentTable).insert([record]).select('id');
         if (error) throw error;
         return data;
     },
-
     async getNextRepertorio(year) {
-        const { data, error } = await State.supabase
-            .from('repertorio_instrumentos')
-            .select('n_rep')
-            .ilike('n_rep', `%-${year}`)
-            .order('id', { ascending: false })
-            .limit(1);
-            
+        const { data, error } = await State.supabase.from('repertorio_instrumentos').select('n_rep').ilike('n_rep', `%-${year}`).order('id', { ascending: false }).limit(1);
         if (error) throw error;
-        
         let next = 1;
         if(data && data.length > 0) {
             const parts = data[0].n_rep.split('-');
@@ -49,11 +36,25 @@ const DataService = {
         }
         return `${next < 10 ? '0'+next : next}-${year}`;
     },
+    // ...
+
+    // Obtener registros por rango de fecha (Para informes)
+    async getRecordsByDateRange(startDate, endDate) {
+        const schema = SCHEMAS[State.currentTable];
+        const { data, error } = await State.supabase
+            .from(State.currentTable)
+            .select(schema.dbReadFields.join(','))
+            .gte('fecha', startDate)
+            .lte('fecha', endDate)
+            .order('fecha', { ascending: true }); // Orden cronológico
+        
+        if (error) throw error;
+        return data;
+    },
 
     async getAllRecordsForExport(isCierreDia, monthFilter = null) {
         const schema = SCHEMAS[State.currentTable];
         let query = State.supabase.from(State.currentTable).select(schema.dbReadFields.join(','));
-        
         if (isCierreDia) {
             const today = new Date().toISOString().split('T')[0];
             query = query.eq('fecha', today);
@@ -62,12 +63,9 @@ const DataService = {
             const startDate = `${year}-${month}-01`;
             const lastDay = new Date(year, month, 0).getDate();
             const endDate = `${year}-${month}-${lastDay}`;
-            
             query = query.gte('fecha', startDate).lte('fecha', endDate);
         }
-        
         query = query.order('id', { ascending: false });
-        
         const { data, error } = await query;
         if (error) throw error;
         return data;
@@ -85,7 +83,8 @@ const DataService = {
 
 // --- MÓDULO: Exportación ---
 const ExportService = {
-    async generatePDF(isCierreDia) {
+    // CAMBIO: Acepta customData (array de registros) para imprimir buscadores/informes
+    async generatePDF(isCierreDia, customData = null) {
         if (typeof window.jspdf === 'undefined') { UI.showError("Librerías cargando..."); return; }
         
         let registros = [];
@@ -93,7 +92,9 @@ const ExportService = {
 
         UI.showLoading(true);
         try {
-            if (isCierreDia) {
+            if (customData) {
+                registros = customData;
+            } else if (isCierreDia) {
                 const data = await DataService.getAllRecordsForExport(true);
                 if (!data || data.length === 0) throw new Error("No hay registros hoy.");
                 registros = data;
@@ -105,7 +106,11 @@ const ExportService = {
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const title = isCierreDia ? `CIERRE DE DÍA - ${schema.tableName}` : schema.tableName;
+        
+        let title = schema.tableName;
+        if (isCierreDia) title = `CIERRE DE DÍA - ${schema.tableName}`;
+        if (customData && !isCierreDia) title = `INFORME - ${schema.tableName}`;
+
         const todayStr = new Date().toLocaleDateString('es-CL');
 
         const body = registros.map(row => {
@@ -139,23 +144,29 @@ const ExportService = {
             }
         });
 
-        if (doc.lastAutoTable.finalY > 170) doc.addPage();
-        const min = registros.length > 0 ? (registros[registros.length-1].n_rep || registros[registros.length-1].id) : '?';
-        const max = registros.length > 0 ? (registros[0].n_rep || registros[0].id) : '?';
-        
-        doc.setFontSize(11);
-        doc.text(`Certifico que hoy se realizaron ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
-        doc.text("_______________________", 150, doc.lastAutoTable.finalY + 30);
-        doc.text("Firma Responsable", 165, doc.lastAutoTable.finalY + 35, { align: 'center' });
+        // Certificación solo para Cierre de Día o Informe
+        if (isCierreDia || customData) {
+            if (doc.lastAutoTable.finalY > 170) doc.addPage();
+            const min = registros.length > 0 ? (registros[registros.length-1].n_rep || registros[registros.length-1].id) : '?';
+            const max = registros.length > 0 ? (registros[0].n_rep || registros[0].id) : '?';
+            
+            doc.setFontSize(11);
+            doc.text(`Certifico que este reporte contiene ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
+            doc.text("_______________________", 150, doc.lastAutoTable.finalY + 30);
+            doc.text("Firma Responsable", 165, doc.lastAutoTable.finalY + 35, { align: 'center' });
+        }
 
         doc.save(`Reporte_${new Date().getTime()}.pdf`);
     },
 
-    async generateExcel(isFullExport, monthFilter = null) {
+    // CAMBIO: Acepta customData
+    async generateExcel(isFullExport, monthFilter = null, customData = null) {
         let registros = [];
         UI.showLoading(true);
         try {
-            if (isFullExport) {
+            if (customData) {
+                registros = customData;
+            } else if (isFullExport) {
                 registros = await DataService.getAllRecordsForExport(false, monthFilter);
             } else {
                 registros = this.getSelectedData();
@@ -211,7 +222,98 @@ const ExportService = {
         document.body.removeChild(link);
     },
 
-    async generateIndiceGeneral() {
+    // CAMBIO: Acepta customData
+    generatePrint(customData = null) {
+        let registros = [];
+        try {
+            if (customData) {
+                registros = customData;
+            } else {
+                registros = this.getSelectedData();
+            }
+        } catch (e) { UI.showError(e.message); return; }
+
+        if (!registros || registros.length === 0) { UI.showError("No hay datos para imprimir."); return; }
+
+        const schema = SCHEMAS[State.currentTable];
+        
+        const tableRows = registros.map(row => {
+            let cells = '';
+            if (State.currentTable === 'repertorio_instrumentos') {
+                const data = [
+                    UI.formatDate(row.fecha), 
+                    row.n_rep,
+                    `${row.contratante_1_nombre} ${row.contratante_1_apellido}`,
+                    `${row.contratante_2_nombre} ${row.contratante_2_apellido}`,
+                    row.acto_o_contrato, row.abogado_redactor, row.n_agregado, UI.formatDate(row.created_at)
+                ];
+                cells = data.map(val => `<td>${val || ''}</td>`).join('');
+            } else {
+                cells = schema.dbReadFields
+                    .filter((_, i) => !schema.hiddenColumns?.includes(i))
+                    .map(f => {
+                        let val = row[f];
+                        if (f === 'fecha' || f === 'created_at') val = UI.formatDate(val);
+                        return `<td>${val || ''}</td>`;
+                    }).join('');
+            }
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        const headers = schema.columnNames
+            .filter((_, i) => !schema.hiddenColumns?.includes(i))
+            .map(h => `<th>${h}</th>`).join('');
+
+        const content = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Impresión</title>
+                <style>
+                    body, html { margin: 0; padding: 0; font-family: 'Arial', sans-serif; font-size: 11px; }
+                    @page { margin: 0; size: landscape; }
+                    .print-container { padding: 1.5cm; }
+                    h2 { text-align: center; margin-bottom: 5px; font-size: 16px; text-transform: uppercase; }
+                    .meta { text-align: right; font-size: 10px; color: #555; margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #000; padding: 4px 6px; text-align: left; vertical-align: top; }
+                    th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 10px; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                </style>
+            </head>
+            <body>
+                <div class="print-container">
+                    <h2>${schema.tableName}</h2>
+                    <div class="meta">Fecha de emisión: ${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL')}</div>
+                    <table>
+                        <thead><tr>${headers}</tr></thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+                <script>window.onload = function() { window.print(); window.close(); };</script>
+            </body>
+            </html>
+        `;
+
+        let iframe = document.getElementById('print-iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-iframe';
+            iframe.style.position = 'absolute';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(content);
+        doc.close();
+    },
+
+    // (Indice General se mantiene igual)
+    async generateIndiceGeneral() { /* ... código anterior ... */
         const mesAnio = prompt("Ingrese MM-AAAA:", new Date().toLocaleDateString('es-CL', {month:'2-digit', year:'numeric'}).replace('/', '-'));
         if (!mesAnio) return;
         const [mes, anio] = mesAnio.split('-');
@@ -264,107 +366,5 @@ const ExportService = {
         document.querySelectorAll('.row-checkbox:checked').forEach(c => r.push(JSON.parse(c.dataset.registro)));
         if (r.length === 0) throw new Error('Seleccione registros.');
         return r;
-    },
-
-    generatePrint() {
-        let registros = [];
-        try {
-            registros = this.getSelectedData();
-        } catch (e) {
-            UI.showError(e.message);
-            return;
-        }
-
-        if (!registros || registros.length === 0) return;
-
-        const schema = SCHEMAS[State.currentTable];
-        
-        const tableRows = registros.map(row => {
-            let cells = '';
-            if (State.currentTable === 'repertorio_instrumentos') {
-                const data = [
-                    UI.formatDate(row.fecha), 
-                    row.n_rep,
-                    `${row.contratante_1_nombre} ${row.contratante_1_apellido}`,
-                    `${row.contratante_2_nombre} ${row.contratante_2_apellido}`,
-                    row.acto_o_contrato, row.abogado_redactor, row.n_agregado, UI.formatDate(row.created_at)
-                ];
-                cells = data.map(val => `<td>${val || ''}</td>`).join('');
-            } else {
-                cells = schema.dbReadFields
-                    .filter((_, i) => !schema.hiddenColumns?.includes(i))
-                    .map(f => {
-                        let val = row[f];
-                        if (f === 'fecha' || f === 'created_at') val = UI.formatDate(val);
-                        return `<td>${val || ''}</td>`;
-                    }).join('');
-            }
-            return `<tr>${cells}</tr>`;
-        }).join('');
-
-        const headers = schema.columnNames
-            .filter((_, i) => !schema.hiddenColumns?.includes(i))
-            .map(h => `<th>${h}</th>`).join('');
-
-        const content = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Impresión</title>
-                <style>
-                    /* Reset básico */
-                    body, html { margin: 0; padding: 0; font-family: 'Arial', sans-serif; font-size: 11px; }
-                    
-                    /* TRUCO: Ocultar encabezados/pies del navegador con margin 0 */
-                    @page { 
-                        margin: 0; 
-                        size: landscape; 
-                    }
-                    
-                    /* Contenedor principal con margen manual */
-                    .print-container {
-                        padding: 1.5cm; /* Margen visual para el contenido */
-                    }
-                    
-                    h2 { text-align: center; margin-bottom: 5px; font-size: 16px; text-transform: uppercase; }
-                    .meta { text-align: right; font-size: 10px; color: #555; margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-                    
-                    table { width: 100%; border-collapse: collapse; }
-                    th, td { border: 1px solid #000; padding: 4px 6px; text-align: left; vertical-align: top; }
-                    th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 10px; }
-                    tr:nth-child(even) { background-color: #f9f9f9; }
-                </style>
-            </head>
-            <body>
-                <div class="print-container">
-                    <h2>${schema.tableName}</h2>
-                    <div class="meta">Fecha de emisión: ${new Date().toLocaleDateString('es-CL')} ${new Date().toLocaleTimeString('es-CL')}</div>
-                    <table>
-                        <thead><tr>${headers}</tr></thead>
-                        <tbody>${tableRows}</tbody>
-                    </table>
-                </div>
-                <script>
-                    window.onload = function() { window.print(); window.close(); };
-                </script>
-            </body>
-            </html>
-        `;
-
-        let iframe = document.getElementById('print-iframe');
-        if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'print-iframe';
-            iframe.style.position = 'absolute';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = 'none';
-            document.body.appendChild(iframe);
-        }
-
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(content);
-        doc.close();
     }
 };
