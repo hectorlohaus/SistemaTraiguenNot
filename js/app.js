@@ -55,7 +55,11 @@ const App = {
             State.sort.ascending = true;
         }
         State.currentPage = 1; // Volver a la primera página al reordenar
-        this.loadData();
+        
+        // CORRECCIÓN IMPORTANTE: 
+        // Usamos updateUI() en lugar de loadData() para que también se 
+        // regeneren los encabezados (flechas y colores) con el nuevo orden.
+        this.updateUI(); 
     },
 
     updateUI() {
@@ -79,21 +83,46 @@ const App = {
                      dbField = schema.dbReadFields[index];
                 }
 
-                // Icono de orden
-                let sortIcon = '';
-                if (State.sort.field === dbField) {
-                    sortIcon = State.sort.ascending ? ' ▲' : ' ▼';
+                const isActive = State.sort.field === dbField;
+                
+                // Estilos dinámicos para resaltar la columna activa
+                let thClass = "py-3 px-6 text-left font-bold tracking-wider cursor-pointer select-none transition-all duration-200 border-b-2 group";
+                
+                if (isActive) {
+                    // Si está activa: Fondo azul, texto azul, borde azul
+                    thClass += " bg-blue-50 text-blue-700 border-blue-500";
+                } else {
+                    // Si no está activa: Gris normal, hover gris claro
+                    thClass += " hover:bg-slate-200 text-slate-600 border-transparent hover:border-slate-300";
+                }
+
+                // Icono SVG dinámico
+                let iconHtml = '';
+                if (isActive) {
+                    if (State.sort.ascending) {
+                        // Flecha Arriba
+                        iconHtml = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 inline-block" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>`;
+                    } else {
+                        // Flecha Abajo
+                        iconHtml = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 inline-block" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
+                    }
+                } else {
+                    // Icono fantasma (doble flecha) que aparece al pasar el mouse
+                    iconHtml = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1 inline-block text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>`;
                 }
 
                 headerHtml += `
-                    <th class="py-3 px-6 text-left font-bold tracking-wider cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="App.changeSort('${dbField}')">
-                        ${name} <span class="text-blue-600">${sortIcon}</span>
+                    <th class="${thClass}" onclick="App.changeSort('${dbField}')">
+                        <div class="flex items-center">
+                            ${name}
+                            ${iconHtml}
+                        </div>
                     </th>`;
             });
             
             // Columna de Acciones si es Admin
             if (typeof isAdmin !== 'undefined' && isAdmin) {
-                headerHtml += `<th class="py-3 px-6 text-center font-bold tracking-wider">Acciones</th>`;
+                headerHtml += `<th class="py-3 px-6 text-center font-bold tracking-wider border-b-2 border-transparent">Acciones</th>`;
             }
             
             UI.els['table-header'].innerHTML = headerHtml + `</tr>`;
@@ -114,7 +143,7 @@ const App = {
         if (tableName === 'repertorio_instrumentos') {
             State.sort = { field: 'n_rep', ascending: true };
         } else {
-            State.sort = { field: 'numero_inscripcion', ascending: true };
+            State.sort = { field: 'id', ascending: true };
         }
 
         this.cancelEdit(); 
@@ -257,8 +286,17 @@ const App = {
         schema.formFields.forEach(f => {
             const el = document.getElementById(`form-${f.id}`);
             if (el) {
-                if(el.value) newRow[f.id] = el.value;
-                else if(f.required) { isValid = false; el.classList.add('border-red-500'); }
+                const val = el.value;
+                // CAMBIO: Permitir guardar vacíos (para poder borrar datos al editar)
+                // Si es requerido y está vacío -> Error
+                // Si no es requerido -> Se guarda tal cual (vacío o con valor)
+                
+                if (f.required && !val) { 
+                    isValid = false; 
+                    el.classList.add('border-red-500'); 
+                } else {
+                    newRow[f.id] = val;
+                }
             }
         });
 
