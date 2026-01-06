@@ -7,7 +7,6 @@ const UI = {
     els: {}, // Cache de elementos DOM
     
     init() {
-        // Mapear elementos por ID automáticamente para acceso rápido
         const ids = [
             'app-view', 'app-title', 'form-container', 'btn-logout', 'form-nuevo-registro', 
             'dynamic-form-fields', 'btn-propiedad', 'btn-sociedad', 'table-header', 'table-body', 
@@ -45,11 +44,9 @@ const UI = {
     formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
-        // Ajuste de zona horaria para mostrar la fecha correcta
         return new Date(d.getTime() + d.getTimezoneOffset()*60000).toLocaleDateString('es-CL');
     },
 
-    // CAMBIO PRINCIPAL: Renderizado inteligente de la tabla
     renderTable(data) {
         if (!this.els['table-body']) return;
         const tbody = this.els['table-body'];
@@ -66,16 +63,12 @@ const UI = {
             const tr = document.createElement('tr');
             tr.className = "border-b border-gray-200 hover:bg-slate-50 bg-white";
             
-            // Checkbox
             let html = `<td class="py-3 px-6"><input type="checkbox" class="row-checkbox rounded text-blue-600 focus:ring-blue-500 border-gray-300"></td>`;
             
-            // Lógica de renderizado específica por tabla
             if (State.currentTable === 'repertorio_instrumentos') {
-                // Para Repertorio de Instrumentos, concatenamos nombres y apellidos
                 const contratante1 = `${row.contratante_1_nombre || ''} ${row.contratante_1_apellido || ''}`.trim();
                 const contratante2 = `${row.contratante_2_nombre || ''} ${row.contratante_2_apellido || ''}`.trim();
 
-                // CAMBIO: Se eliminó la línea que mostraba row.id para alinear con las columnas ocultas
                 html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap">${this.formatDate(row.fecha)}</td>`;
                 html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap font-medium">${row.n_rep || '-'}</td>`;
                 html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap">${contratante1 || '-'}</td>`;
@@ -85,23 +78,29 @@ const UI = {
                 html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap">${row.n_agregado || '-'}</td>`;
                 html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap">${this.formatDate(row.created_at)}</td>`;
             } else {
-                // Para Repertorio Conservador u otros (Lógica genérica)
                 schema.dbReadFields.forEach((field, i) => {
-                    if (schema.hiddenColumns?.includes(i)) return; // Saltar columnas ocultas
-                    
+                    if (schema.hiddenColumns?.includes(i)) return; 
                     let val = row[field];
                     if (field === 'created_at' || field === 'fecha') val = this.formatDate(val);
-                    
                     html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap max-w-xs truncate" title="${val || ''}">${val || '-'}</td>`;
                 });
             }
+
+            // CAMBIO: Columna de Acciones (Solo para Admin)
+            if (typeof isAdmin !== 'undefined' && isAdmin) {
+                html += `
+                    <td class="py-3 px-6 text-center whitespace-nowrap">
+                        <button class="btn-edit-row text-blue-600 hover:text-blue-800 transition-colors p-1 rounded hover:bg-blue-50" data-id="${row.id}" title="Editar">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </button>
+                    </td>`;
+            }
             
             tr.innerHTML = html;
-            
-            // Guardar datos completos en el dataset para edición/exportación
             const checkbox = tr.querySelector('.row-checkbox');
             if(checkbox) checkbox.dataset.registro = JSON.stringify(row);
-            
             tbody.appendChild(tr);
         });
     },
@@ -111,7 +110,6 @@ const UI = {
         const container = this.els['dynamic-form-fields'];
         const schema = SCHEMAS[State.currentTable];
         
-        // Configuración de grilla: 4 columnas para mayor densidad de información
         container.className = "grid grid-cols-1 md:grid-cols-4 gap-6";
         container.innerHTML = '';
         
@@ -128,7 +126,6 @@ const UI = {
                 inputHtml = `<input type="${field.type}" id="form-${field.id}" ${requiredAttr} placeholder="${field.placeholder || ''}" class="${baseClass}">`;
             }
             
-            // Renderizar el campo ocupando las columnas especificadas en 'span'
             container.innerHTML += `
                 <div class="col-span-1 md:col-span-${field.span || 1}">
                     <label for="form-${field.id}" class="block text-sm font-medium text-gray-700 mb-1">
@@ -139,16 +136,16 @@ const UI = {
             `;
         });
 
-        // Lógica de autocompletado para Fecha y N° Repertorio
         const dateField = document.getElementById('form-fecha');
         if (dateField) {
-            // Fecha por defecto: Hoy
             if (!dateField.value) dateField.valueAsDate = new Date();
             
-            // Solo para Repertorio de Instrumentos
             if (State.currentTable === 'repertorio_instrumentos') {
                 const repField = document.getElementById('form-n_rep');
                 const calc = async () => {
+                    // Solo calcular si NO estamos editando (para no sobrescribir el número existente)
+                    if (State.editingId) return;
+
                     const year = dateField.value.split('-')[0];
                     if(!year || !repField) return;
                     
@@ -164,7 +161,6 @@ const UI = {
                         repField.readOnly = false; 
                     }
                 };
-                // Calcular al inicio y al cambiar fecha
                 calc();
                 dateField.addEventListener('change', calc);
             }
@@ -173,10 +169,7 @@ const UI = {
 
     updatePagination(count) {
         if (!this.els['pagination-controls']) return;
-        
-        // Mostrar controles solo si hay registros
         this.els['pagination-controls'].style.display = count > 0 ? 'flex' : 'none';
-        
         if (this.els['pagination-status']) {
             const start = (State.currentPage - 1) * CONFIG.RECORDS_PER_PAGE + 1;
             const end = Math.min(State.currentPage * CONFIG.RECORDS_PER_PAGE, count);

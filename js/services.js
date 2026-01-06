@@ -3,32 +3,44 @@
 // Lógica de negocio: Datos (Supabase) y Exportación (PDF/Excel/Print)
 
 const DataService = {
-    // ... (loadData, saveRecord, getNextRepertorio se mantienen iguales) ...
     async loadData(filtro = '') {
         const schema = SCHEMAS[State.currentTable];
         const from = (State.currentPage - 1) * CONFIG.RECORDS_PER_PAGE;
         const to = from + CONFIG.RECORDS_PER_PAGE - 1;
+        
         let query = State.supabase.from(State.currentTable);
         let countQuery = query.select('*', { count: 'exact', head: true });
         let dataQuery = query.select(schema.dbReadFields.join(',')).order('id', { ascending: false }).range(from, to);
+        
         if (filtro && schema.filterColumns.length > 0) {
             const filtroQuery = schema.filterColumns.map(col => `${col}.ilike.%${filtro}%`).join(',');
             countQuery = countQuery.or(filtroQuery); 
             dataQuery = dataQuery.or(filtroQuery);
         }
+        
         const { data, error } = await dataQuery;
         const { count, error: countError } = await countQuery;
+        
         if (error || countError) throw new Error((error || countError).message);
         return { data, count };
     },
+
     async saveRecord(record) {
         const { data, error } = await State.supabase.from(State.currentTable).insert([record]).select('id');
         if (error) throw error;
         return data;
     },
+
     async getNextRepertorio(year) {
-        const { data, error } = await State.supabase.from('repertorio_instrumentos').select('n_rep').ilike('n_rep', `%-${year}`).order('id', { ascending: false }).limit(1);
+        const { data, error } = await State.supabase
+            .from('repertorio_instrumentos')
+            .select('n_rep')
+            .ilike('n_rep', `%-${year}`)
+            .order('id', { ascending: false })
+            .limit(1);
+            
         if (error) throw error;
+        
         let next = 1;
         if(data && data.length > 0) {
             const parts = data[0].n_rep.split('-');
@@ -36,36 +48,27 @@ const DataService = {
         }
         return `${next < 10 ? '0'+next : next}-${year}`;
     },
-    // ...
 
-    // Obtener registros por rango de fecha (Para informes)
-    async getRecordsByDateRange(startDate, endDate) {
-        const schema = SCHEMAS[State.currentTable];
-        const { data, error } = await State.supabase
-            .from(State.currentTable)
-            .select(schema.dbReadFields.join(','))
-            .gte('fecha', startDate)
-            .lte('fecha', endDate)
-            .order('fecha', { ascending: true }); // Orden cronológico
-        
-        if (error) throw error;
-        return data;
-    },
-
-    async getAllRecordsForExport(isCierreDia, monthFilter = null) {
+    // CAMBIO: Acepta specificDate para el cierre de día
+    async getAllRecordsForExport(isCierreDia, monthFilter = null, specificDate = null) {
         const schema = SCHEMAS[State.currentTable];
         let query = State.supabase.from(State.currentTable).select(schema.dbReadFields.join(','));
+        
         if (isCierreDia) {
-            const today = new Date().toISOString().split('T')[0];
-            query = query.eq('fecha', today);
+            // Usar la fecha específica si existe, sino hoy
+            const targetDate = specificDate || new Date().toISOString().split('T')[0];
+            query = query.eq('fecha', targetDate);
         } else if (monthFilter) {
             const [year, month] = monthFilter.split('-');
             const startDate = `${year}-${month}-01`;
             const lastDay = new Date(year, month, 0).getDate();
             const endDate = `${year}-${month}-${lastDay}`;
+            
             query = query.gte('fecha', startDate).lte('fecha', endDate);
         }
+        
         query = query.order('id', { ascending: false });
+        
         const { data, error } = await query;
         if (error) throw error;
         return data;
@@ -81,10 +84,9 @@ const DataService = {
     }
 };
 
-// --- MÓDULO: Exportación ---
 const ExportService = {
-    // CAMBIO: Acepta customData (array de registros) para imprimir buscadores/informes
-    async generatePDF(isCierreDia, customData = null) {
+    // CAMBIO: Acepta specificDate
+    async generatePDF(isCierreDia, customData = null, specificDate = null) {
         if (typeof window.jspdf === 'undefined') { UI.showError("Librerías cargando..."); return; }
         
         let registros = [];
@@ -95,8 +97,9 @@ const ExportService = {
             if (customData) {
                 registros = customData;
             } else if (isCierreDia) {
-                const data = await DataService.getAllRecordsForExport(true);
-                if (!data || data.length === 0) throw new Error("No hay registros hoy.");
+                // Pasar la fecha específica al servicio de datos
+                const data = await DataService.getAllRecordsForExport(true, null, specificDate);
+                if (!data || data.length === 0) throw new Error("No hay registros para la fecha seleccionada.");
                 registros = data;
             } else {
                 registros = this.getSelectedData();
@@ -108,8 +111,12 @@ const ExportService = {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         
         let title = schema.tableName;
-        if (isCierreDia) title = `CIERRE DE DÍA - ${schema.tableName}`;
-        if (customData && !isCierreDia) title = `INFORME - ${schema.tableName}`;
+        if (isCierreDia) {
+             const dateStr = specificDate ? new Date(specificDate + 'T00:00:00').toLocaleDateString('es-CL') : new Date().toLocaleDateString('es-CL');
+             title = `CIERRE DE DÍA (${dateStr}) - ${schema.tableName}`;
+        } else if (customData) {
+            title = `INFORME - ${schema.tableName}`;
+        }
 
         const todayStr = new Date().toLocaleDateString('es-CL');
 
@@ -140,18 +147,17 @@ const ExportService = {
             styles: { fontSize: 8 }, headStyles: { fillColor: [15, 23, 42] },
             didDrawPage: (d) => {
                 doc.setFontSize(14); doc.text(title, 15, 15);
-                doc.setFontSize(10); doc.text(todayStr, 280, 15, { align: 'right' });
+                doc.setFontSize(10); doc.text(`Generado: ${todayStr}`, 280, 15, { align: 'right' });
             }
         });
 
-        // Certificación solo para Cierre de Día o Informe
         if (isCierreDia || customData) {
             if (doc.lastAutoTable.finalY > 170) doc.addPage();
             const min = registros.length > 0 ? (registros[registros.length-1].n_rep || registros[registros.length-1].id) : '?';
             const max = registros.length > 0 ? (registros[0].n_rep || registros[0].id) : '?';
             
             doc.setFontSize(11);
-            doc.text(`Certifico que este reporte contiene ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
+            doc.text(`Certifico que se realizaron ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
             doc.text("_______________________", 150, doc.lastAutoTable.finalY + 30);
             doc.text("Firma Responsable", 165, doc.lastAutoTable.finalY + 35, { align: 'center' });
         }
@@ -159,7 +165,7 @@ const ExportService = {
         doc.save(`Reporte_${new Date().getTime()}.pdf`);
     },
 
-    // CAMBIO: Acepta customData
+    // ... Resto de funciones (generateExcel, generatePrint, etc.) se mantienen igual ...
     async generateExcel(isFullExport, monthFilter = null, customData = null) {
         let registros = [];
         UI.showLoading(true);
@@ -222,7 +228,61 @@ const ExportService = {
         document.body.removeChild(link);
     },
 
-    // CAMBIO: Acepta customData
+    async generateIndiceGeneral() {
+        const mesAnio = prompt("Ingrese MM-AAAA:", new Date().toLocaleDateString('es-CL', {month:'2-digit', year:'numeric'}).replace('/', '-'));
+        if (!mesAnio) return;
+        const [mes, anio] = mesAnio.split('-');
+        if (!mes || !anio) { UI.showError("Formato incorrecto."); return; }
+
+        UI.showLoading(true);
+        const startDate = `${anio}-${mes}-01`;
+        const lastDay = new Date(anio, mes, 0).getDate();
+        const endDate = `${anio}-${mes}-${lastDay}`;
+
+        const { data, error } = await DataService.getRecordsForIndice(startDate, endDate);
+        UI.showLoading(false);
+
+        if (error) { UI.showError(error.message); return; }
+        if (!data || data.length === 0) { UI.showError("No hay datos."); return; }
+
+        const grouped = {};
+        data.forEach(r => {
+            const letra = (r.contratante_1_apellido || '').charAt(0).toUpperCase();
+            if (!grouped[letra]) grouped[letra] = [];
+            grouped[letra].push(r);
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' }); 
+        const letras = Object.keys(grouped).sort();
+
+        letras.forEach((letra, index) => {
+            if (index > 0) doc.addPage();
+            doc.setFontSize(16); doc.text(`INDICE GENERAL - ${letra}`, 105, 20, { align: 'center' });
+            doc.setFontSize(10); doc.text(`Período: ${mes}-${anio}`, 105, 26, { align: 'center' });
+
+            const body = grouped[letra].map(r => [
+                `${r.contratante_1_apellido}, ${r.contratante_1_nombre}`, 
+                `${r.contratante_2_nombre} ${r.contratante_2_apellido}`,
+                r.acto_o_contrato, r.n_rep
+            ]);
+
+            doc.autoTable({
+                head: [['Contratante 1 (Orden)', 'Contratante 2', 'Acto', 'N° Rep']],
+                body: body, startY: 35, theme: 'plain', styles: { fontSize: 9, cellPadding: 2 },
+                columnStyles: { 0: { fontStyle: 'bold' } } 
+            });
+        });
+        doc.save(`Indice_General_${mes}_${anio}.pdf`);
+    },
+
+    getSelectedData() {
+        const r = [];
+        document.querySelectorAll('.row-checkbox:checked').forEach(c => r.push(JSON.parse(c.dataset.registro)));
+        if (r.length === 0) throw new Error('Seleccione registros.');
+        return r;
+    },
+
     generatePrint(customData = null) {
         let registros = [];
         try {
@@ -310,61 +370,5 @@ const ExportService = {
         doc.open();
         doc.write(content);
         doc.close();
-    },
-
-    // (Indice General se mantiene igual)
-    async generateIndiceGeneral() { /* ... código anterior ... */
-        const mesAnio = prompt("Ingrese MM-AAAA:", new Date().toLocaleDateString('es-CL', {month:'2-digit', year:'numeric'}).replace('/', '-'));
-        if (!mesAnio) return;
-        const [mes, anio] = mesAnio.split('-');
-        if (!mes || !anio) { UI.showError("Formato incorrecto."); return; }
-
-        UI.showLoading(true);
-        const startDate = `${anio}-${mes}-01`;
-        const lastDay = new Date(anio, mes, 0).getDate();
-        const endDate = `${anio}-${mes}-${lastDay}`;
-
-        const { data, error } = await DataService.getRecordsForIndice(startDate, endDate);
-        UI.showLoading(false);
-
-        if (error) { UI.showError(error.message); return; }
-        if (!data || data.length === 0) { UI.showError("No hay datos."); return; }
-
-        const grouped = {};
-        data.forEach(r => {
-            const letra = (r.contratante_1_apellido || '').charAt(0).toUpperCase();
-            if (!grouped[letra]) grouped[letra] = [];
-            grouped[letra].push(r);
-        });
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' }); 
-        const letras = Object.keys(grouped).sort();
-
-        letras.forEach((letra, index) => {
-            if (index > 0) doc.addPage();
-            doc.setFontSize(16); doc.text(`INDICE GENERAL - ${letra}`, 105, 20, { align: 'center' });
-            doc.setFontSize(10); doc.text(`Período: ${mes}-${anio}`, 105, 26, { align: 'center' });
-
-            const body = grouped[letra].map(r => [
-                `${r.contratante_1_apellido}, ${r.contratante_1_nombre}`, 
-                `${r.contratante_2_nombre} ${r.contratante_2_apellido}`,
-                r.acto_o_contrato, r.n_rep
-            ]);
-
-            doc.autoTable({
-                head: [['Contratante 1 (Orden)', 'Contratante 2', 'Acto', 'N° Rep']],
-                body: body, startY: 35, theme: 'plain', styles: { fontSize: 9, cellPadding: 2 },
-                columnStyles: { 0: { fontStyle: 'bold' } } 
-            });
-        });
-        doc.save(`Indice_General_${mes}_${anio}.pdf`);
-    },
-
-    getSelectedData() {
-        const r = [];
-        document.querySelectorAll('.row-checkbox:checked').forEach(c => r.push(JSON.parse(c.dataset.registro)));
-        if (r.length === 0) throw new Error('Seleccione registros.');
-        return r;
     }
 };

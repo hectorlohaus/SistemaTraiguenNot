@@ -2,12 +2,18 @@
 // js/app.js
 // Punto de entrada principal: Inicialización y Event Listeners
 
+// --- CONFIGURACIÓN DE EDICIÓN ---
+// Reemplaza esto con el UUID del usuario que tiene permiso para editar
+const ALLOWED_EDIT_UUID = '4154bff1-aaab-4f64-8dc8-b6a909e6bfc8'; 
+
 // --- MÓDULO: Estado Global ---
 const State = {
     currentTable: 'repertorio_instrumentos',
     activeTab: 'registros', // 'registros' o 'buscador'
     currentPage: 1,
     supabase: null,
+    editingId: null, // ID del registro que se está editando (null si es nuevo)
+    currentData: [], // Almacena los datos cargados actualmente para acceso rápido
     
     init() {
         if (!window.supabase) throw new Error("Supabase no cargado");
@@ -23,13 +29,20 @@ const App = {
         try {
             const filtro = UI.els['filtro-busqueda']?.value || '';
             const { data, count } = await DataService.loadData(filtro);
+            
+            // Guardar datos en el estado para poder editarlos por ID luego
+            State.currentData = data;
+            
             UI.renderTable(data);
             UI.updatePagination(count);
+            
+            // Resetear estado de edición al recargar datos si no estamos editando activamente
+            if (!State.editingId) this.cancelEdit();
         } catch(e) { UI.showError('Error: ' + e.message); }
         finally { UI.showLoading(false); }
     },
 
-    updateUI() {
+      updateUI() {
         // Solo actualizar si estamos en la pestaña de registros
         if (State.activeTab !== 'registros') return;
 
@@ -41,6 +54,12 @@ const App = {
             schema.columnNames.forEach((name, index) => {
                 if (!schema.hiddenColumns?.includes(index)) headerHtml += `<th class="py-3 px-6 text-left font-bold tracking-wider">${name}</th>`;
             });
+            
+            // CAMBIO: Agregar columna de Acciones si es Admin
+            if (typeof isAdmin !== 'undefined' && isAdmin) {
+                headerHtml += `<th class="py-3 px-6 text-center font-bold tracking-wider">Acciones</th>`;
+            }
+            
             UI.els['table-header'].innerHTML = headerHtml + `</tr>`;
             
             const cbAll = document.getElementById('select-all-checkbox');
@@ -54,11 +73,12 @@ const App = {
     switchTable(tableName) {
         State.currentTable = tableName;
         State.currentPage = 1;
+        this.cancelEdit(); // Cancelar edición al cambiar tabla
         this.updateUI();
         this.updateTabStyles();
     },
     
-    // Función para manejar el cambio entre "Registros" y "Buscador Avanzado" (App Principal)
+    // Nueva función para manejar el cambio entre "Registros" y "Buscador Avanzado"
     switchMainTab(tabName) {
         State.activeTab = tabName;
         
@@ -83,46 +103,6 @@ const App = {
         this.updateTabStyles();
     },
 
-    // NUEVA: Función específica para las pestañas de la página de Informes
-    initInformesTabs() {
-        const btnInformes = document.getElementById('btn-view-informes');
-        const btnBuscador = document.getElementById('btn-view-buscador');
-        const secInformes = document.getElementById('section-informes');
-        const secBuscador = document.getElementById('section-buscador');
-
-        if (!btnInformes || !btnBuscador) return;
-
-        const activeClass = ['bg-slate-200', 'text-slate-900'];
-        const inactiveClass = ['text-slate-600', 'hover:text-slate-900', 'hover:bg-white'];
-
-        const setTab = (isInformes) => {
-            if (isInformes) {
-                if(secInformes) secInformes.style.display = 'grid';
-                if(secBuscador) secBuscador.style.display = 'none';
-                
-                btnInformes.classList.add(...activeClass);
-                btnInformes.classList.remove(...inactiveClass);
-                
-                btnBuscador.classList.remove(...activeClass);
-                btnBuscador.classList.add(...inactiveClass);
-            } else {
-                if(secInformes) secInformes.style.display = 'none';
-                if(secBuscador) secBuscador.style.display = 'block';
-
-                btnBuscador.classList.add(...activeClass);
-                btnBuscador.classList.remove(...inactiveClass);
-                
-                btnInformes.classList.remove(...activeClass);
-                btnInformes.classList.add(...inactiveClass);
-                
-                if (typeof BuscadorService !== 'undefined') BuscadorService.renderFilters();
-            }
-        };
-
-        btnInformes.addEventListener('click', () => setTab(true));
-        btnBuscador.addEventListener('click', () => setTab(false));
-    },
-
     updateTabStyles() {
         // Estilos para los botones de libros (Propiedad/Sociedad)
         const activeClass = ['border-blue-600', 'text-blue-600', 'bg-blue-50'];
@@ -141,7 +121,7 @@ const App = {
             }
         }
         
-        // Estilos para los botones principales (Registros/Buscador) en App.html / Invitado.html
+        // Estilos para los botones principales (Registros/Buscador)
         const btnMainReg = document.getElementById('btn-main-registros');
         const btnMainBus = document.getElementById('btn-main-buscador');
         
@@ -159,6 +139,72 @@ const App = {
         }
     },
     
+    // --- Lógica de Edición ---
+    
+    // Función para iniciar edición desde el botón del lápiz
+    async startEdit(id) {
+        const user = (await State.supabase.auth.getUser()).data.user;
+        // Validación de UUID
+        if (!user || user.id !== ALLOWED_EDIT_UUID) {
+            UI.showError("No tienes permiso para editar registros.");
+            return;
+        }
+
+        const record = State.currentData.find(r => r.id == id);
+        if (!record) {
+            UI.showError("Registro no encontrado en memoria.");
+            return;
+        }
+
+        State.editingId = record.id;
+        
+        // Llenar formulario
+        const schema = SCHEMAS[State.currentTable];
+        schema.formFields.forEach(f => {
+            const el = document.getElementById(`form-${f.id}`);
+            if (el) el.value = record[f.id] || '';
+        });
+
+        // Cambiar estado visual del botón guardar
+        const btnSave = document.getElementById('btn-save');
+        if (btnSave) {
+            btnSave.textContent = 'Actualizar Registro';
+            btnSave.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btnSave.classList.add('bg-amber-600', 'hover:bg-amber-700');
+        }
+        
+        // Mostrar botón cancelar edición
+        let btnCancel = document.getElementById('btn-cancel-edit');
+        if (!btnCancel && btnSave) {
+            btnCancel = document.createElement('button');
+            btnCancel.id = 'btn-cancel-edit';
+            btnCancel.type = 'button';
+            btnCancel.textContent = 'Cancelar Edición';
+            btnCancel.className = "ml-2 inline-flex items-center justify-center py-2.5 px-6 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:bg-gray-600 transition-all";
+            btnCancel.onclick = () => App.cancelEdit();
+            btnSave.parentNode.insertBefore(btnCancel, btnSave.nextSibling);
+        }
+        
+        // Scroll al formulario
+        document.getElementById('form-container').scrollIntoView({ behavior: 'smooth' });
+        UI.showToast("Modo edición activado.");
+    },
+
+    cancelEdit() {
+        State.editingId = null;
+        document.getElementById('form-nuevo-registro')?.reset();
+        
+        const btnSave = document.getElementById('btn-save');
+        if (btnSave) {
+            btnSave.textContent = 'Guardar Registro';
+            btnSave.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            btnSave.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+        }
+        
+        const btnCancel = document.getElementById('btn-cancel-edit');
+        if (btnCancel) btnCancel.remove();
+    },
+
     async saveRecord() {
          const schema = SCHEMAS[State.currentTable];
         const newRow = {};
@@ -176,19 +222,41 @@ const App = {
 
         try {
             const btn = document.getElementById('btn-save');
-            if(btn) { btn.disabled = true; btn.innerHTML = 'Guardando...'; }
+            if(btn) { btn.disabled = true; btn.innerHTML = State.editingId ? 'Actualizando...' : 'Guardando...'; }
             
-            await DataService.saveRecord(newRow);
+            if (State.editingId) {
+                // MODIFICACIÓN: Actualizar registro existente
+                const user = (await State.supabase.auth.getUser()).data.user;
+                if (!user || user.id !== ALLOWED_EDIT_UUID) {
+                    throw new Error("Permiso denegado para editar.");
+                }
+
+                const { error } = await State.supabase
+                    .from(State.currentTable)
+                    .update(newRow)
+                    .eq('id', State.editingId);
+                
+                if (error) throw error;
+                UI.showToast(`Registro actualizado correctamente.`);
+                this.cancelEdit();
+
+            } else {
+                // Insertar nuevo registro
+                await DataService.saveRecord(newRow);
+                document.getElementById('form-nuevo-registro').reset();
+                UI.showToast(`Registro guardado.`);
+            }
             
             UI.showError(null);
-            document.getElementById('form-nuevo-registro').reset();
-            UI.showToast(`Registro guardado.`);
             State.currentPage = 1;
             this.updateUI();
         } catch(e) { UI.showError('Error al guardar: ' + e.message); }
         finally {
             const btn = document.getElementById('btn-save');
-            if(btn) { btn.disabled = false; btn.textContent = 'Guardar Registro'; }
+            if(btn) { 
+                btn.disabled = false; 
+                btn.textContent = State.editingId ? 'Actualizar Registro' : 'Guardar Registro'; 
+            }
         }
     }
 };
@@ -198,12 +266,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         State.init();
         UI.init();
-        if (typeof BuscadorService !== 'undefined') BuscadorService.init(); // Inicializar servicio de búsqueda si existe
+        if (typeof BuscadorService !== 'undefined') BuscadorService.init(); 
         
-        // Inicializar pestañas de informes si estamos en esa página
-        App.initInformesTabs();
-
-        // Lógica para ocultar elementos de administración si es Invitado
+        // Ocultar elementos para invitados
         if (typeof isAdmin !== 'undefined' && !isAdmin) {
             const cierreElements = document.querySelectorAll('[id^="btn-cierre-"]');
             cierreElements.forEach(el => {
@@ -235,19 +300,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (UI.els['btn-propiedad']) UI.els['btn-propiedad'].addEventListener('click', () => App.switchTable('repertorio_instrumentos'));
         if (UI.els['btn-sociedad']) UI.els['btn-sociedad'].addEventListener('click', () => App.switchTable('repertorio_conservador'));
 
-        // Listeners para las Pestañas Principales (Registros vs Buscador) en App.html
         const btnMainReg = document.getElementById('btn-main-registros');
         const btnMainBus = document.getElementById('btn-main-buscador');
         
         if (btnMainReg) btnMainReg.addEventListener('click', () => App.switchMainTab('registros'));
         if (btnMainBus) btnMainBus.addEventListener('click', () => App.switchMainTab('buscador'));
 
-        // Búsqueda simple
         const buscar = () => { State.currentPage = 1; App.loadData(); };
         if (UI.els['btn-buscar']) UI.els['btn-buscar'].addEventListener('click', buscar);
         if (UI.els['filtro-busqueda']) UI.els['filtro-busqueda'].addEventListener('keyup', (e) => { if (e.key === 'Enter') buscar(); });
 
-        // Guardar registro
         if (typeof isAdmin !== 'undefined' && isAdmin && UI.els['form-nuevo-registro']) {
             UI.els['form-nuevo-registro'].addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -255,59 +317,58 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Paginación
         if (UI.els['btn-prev']) UI.els['btn-prev'].addEventListener('click', () => { if(State.currentPage > 1) { State.currentPage--; App.loadData(); } });
         if (UI.els['btn-next']) UI.els['btn-next'].addEventListener('click', () => { State.currentPage++; App.loadData(); });
         
-        // --- BOTONES DE EXPORTACIÓN (App.html) ---
+        // Exportaciones
         const btnPdf = document.getElementById('btn-pdf');
-        if (btnPdf) {
-            btnPdf.addEventListener('click', (e) => {
-                e.preventDefault(); 
-                ExportService.generatePDF(false);
-            });
-        }
-
+        if (btnPdf) btnPdf.addEventListener('click', (e) => { e.preventDefault(); ExportService.generatePDF(false); });
         const btnPrint = document.getElementById('btn-print');
-        if (btnPrint) {
-            btnPrint.addEventListener('click', (e) => {
-                e.preventDefault();
-                ExportService.generatePrint();
-            });
-        }
-
+        if (btnPrint) btnPrint.addEventListener('click', (e) => { e.preventDefault(); ExportService.generatePrint(); });
         const btnExcel = document.getElementById('btn-excel');
-        if (btnExcel) {
-            btnExcel.addEventListener('click', (e) => {
-                e.preventDefault();
-                ExportService.generateExcel(false); // False = Solo selección actual
+        if (btnExcel) btnExcel.addEventListener('click', (e) => { e.preventDefault(); ExportService.generateExcel(false); });
+
+        // CAMBIO: Listener para botones de edición (Delegación de eventos en la tabla)
+        const tbody = document.getElementById('table-body');
+        if (tbody) {
+            tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn-edit-row');
+                if (btn) {
+                    const id = btn.dataset.id;
+                    App.startEdit(id);
+                }
             });
         }
 
-        // --- LÓGICA DE LA PÁGINA DE INFORMES ---
-        const setupModal = (btnId, title, action) => {
+        // Informes Modals
+        const setupModal = (btnId, dateInputId, title) => {
             const btn = document.getElementById(btnId); 
+            const dateInput = document.getElementById(dateInputId);
+            
             if (btn) {
+                if (dateInput && !dateInput.value) { dateInput.valueAsDate = new Date(); }
                 btn.addEventListener('click', () => {
                     if (btnId.includes('inst')) State.currentTable = 'repertorio_instrumentos';
                     else State.currentTable = 'repertorio_conservador';
                     
+                    const selectedDate = dateInput ? dateInput.value : null;
+                    const dateDisplay = selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-CL') : 'HOY';
+
                     if (UI.els['modal-title']) UI.els['modal-title'].textContent = title;
-                    if (UI.els['modal-message']) UI.els['modal-message'].textContent = "¿Confirmar generación?";
+                    if (UI.els['modal-message']) UI.els['modal-message'].textContent = `¿Confirmar generación para el día ${dateDisplay}?`;
                     if (UI.els['confirmation-modal']) UI.els['confirmation-modal'].style.display = 'flex';
                     if (UI.els['btn-confirm-modal']) UI.els['btn-confirm-modal'].onclick = async () => {
                         if (UI.els['confirmation-modal']) UI.els['confirmation-modal'].style.display = 'none';
-                        await action();
+                        await ExportService.generatePDF(true, null, selectedDate);
                     };
                 });
             }
         };
 
-        // Solo configurar botones de cierre si es admin
         if (typeof isAdmin !== 'undefined' && isAdmin) {
-            setupModal('btn-cierre-inst', 'Cierre Instrumentos', () => ExportService.generatePDF(true));
-            setupModal('btn-cierre-cons', 'Cierre Conservador', () => ExportService.generatePDF(true));
-            setupModal('btn-cierre-dia', 'Cierre de Día', () => ExportService.generatePDF(true)); // Para el botón en header de app.html si existiera
+            setupModal('btn-cierre-inst', 'date-cierre-inst', 'Cierre Instrumentos');
+            setupModal('btn-cierre-cons', 'date-cierre-cons', 'Cierre Conservador');
+            setupModal('btn-cierre-dia', null, 'Cierre de Día');
         }
         
         const btnIndice = document.getElementById('btn-indice-inst');
@@ -318,7 +379,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // Exportaciones Directas (Excel Completo desde Informes)
         const setupDirectExport = (btnId, action) => {
             const btn = document.getElementById(btnId);
             if (btn) {
@@ -350,7 +410,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupMonthExport('btn-excel-month-cons', 'month-excel-cons');
         
         if (UI.els['btn-cancel-modal']) UI.els['btn-cancel-modal'].addEventListener('click', () => UI.els['confirmation-modal'].style.display = 'none');
-
 
     } catch (e) { console.error(e); UI.showError(e.message); }
 });
