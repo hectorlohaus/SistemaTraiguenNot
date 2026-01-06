@@ -193,9 +193,16 @@ const App = {
     cancelEdit() {
         State.editingId = null;
         document.getElementById('form-nuevo-registro')?.reset();
+
         const dateInput = document.getElementById('form-fecha');
         if (dateInput) {
-            dateInput.valueAsDate = new Date();
+            // Asignar fecha de hoy (ajustando zona horaria local)
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            dateInput.valueAsDate = now;
+
+            // Opcional: Disparar el evento 'change' para que se recalcule el N° de Repertorio si es necesario
+            dateInput.dispatchEvent(new Event('change'));
         }
         
         const btnSave = document.getElementById('btn-save');
