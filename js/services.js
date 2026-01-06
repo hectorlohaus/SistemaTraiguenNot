@@ -10,7 +10,14 @@ const DataService = {
         
         let query = State.supabase.from(State.currentTable);
         let countQuery = query.select('*', { count: 'exact', head: true });
-        let dataQuery = query.select(schema.dbReadFields.join(',')).order('id', { ascending: false }).range(from, to);
+        
+        // CAMBIO: Usar el orden definido en el estado (State.sort) en lugar de fijo
+        const sortField = State.sort?.field || 'id';
+        const sortAsc = State.sort?.ascending || false;
+
+        let dataQuery = query.select(schema.dbReadFields.join(','))
+                             .order(sortField, { ascending: sortAsc })
+                             .range(from, to);
         
         if (filtro && schema.filterColumns.length > 0) {
             const filtroQuery = schema.filterColumns.map(col => `${col}.ilike.%${filtro}%`).join(',');
@@ -49,13 +56,11 @@ const DataService = {
         return `${next < 10 ? '0'+next : next}-${year}`;
     },
 
-    // CAMBIO: Acepta specificDate para el cierre de día
     async getAllRecordsForExport(isCierreDia, monthFilter = null, specificDate = null) {
         const schema = SCHEMAS[State.currentTable];
         let query = State.supabase.from(State.currentTable).select(schema.dbReadFields.join(','));
         
         if (isCierreDia) {
-            // Usar la fecha específica si existe, sino hoy
             const targetDate = specificDate || new Date().toISOString().split('T')[0];
             query = query.eq('fecha', targetDate);
         } else if (monthFilter) {
@@ -85,7 +90,6 @@ const DataService = {
 };
 
 const ExportService = {
-    // CAMBIO: Acepta specificDate
     async generatePDF(isCierreDia, customData = null, specificDate = null) {
         if (typeof window.jspdf === 'undefined') { UI.showError("Librerías cargando..."); return; }
         
@@ -97,7 +101,6 @@ const ExportService = {
             if (customData) {
                 registros = customData;
             } else if (isCierreDia) {
-                // Pasar la fecha específica al servicio de datos
                 const data = await DataService.getAllRecordsForExport(true, null, specificDate);
                 if (!data || data.length === 0) throw new Error("No hay registros para la fecha seleccionada.");
                 registros = data;
@@ -165,7 +168,6 @@ const ExportService = {
         doc.save(`Reporte_${new Date().getTime()}.pdf`);
     },
 
-    // ... Resto de funciones (generateExcel, generatePrint, etc.) se mantienen igual ...
     async generateExcel(isFullExport, monthFilter = null, customData = null) {
         let registros = [];
         UI.showLoading(true);
