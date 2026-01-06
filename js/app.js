@@ -4,7 +4,7 @@
 
 // --- CONFIGURACIÓN DE EDICIÓN ---
 // Reemplaza esto con el UUID del usuario que tiene permiso para editar
-const ALLOWED_EDIT_UUID = '4154bff1-aaab-4f64-8dc8-b6a909e6bfc8'; 
+const ALLOWED_EDIT_UUID = '4fde3166-b632-44f9-be12-f59de4e458f4'; 
 
 // --- MÓDULO: Estado Global ---
 const State = {
