@@ -193,6 +193,10 @@ const App = {
     cancelEdit() {
         State.editingId = null;
         document.getElementById('form-nuevo-registro')?.reset();
+        const dateInput = document.getElementById('form-fecha');
+        if (dateInput) {
+            dateInput.valueAsDate = new Date();
+        }
         
         const btnSave = document.getElementById('btn-save');
         if (btnSave) {
