@@ -63,6 +63,9 @@ const DataService = {
         if (isCierreDia) {
             const targetDate = specificDate || new Date().toISOString().split('T')[0];
             query = query.eq('fecha', targetDate);
+            
+            // CAMBIO: Orden ascendente para Cierre de Día (1 al X)
+            query = query.order('id', { ascending: true });
         } else if (monthFilter) {
             const [year, month] = monthFilter.split('-');
             const startDate = `${year}-${month}-01`;
@@ -70,9 +73,11 @@ const DataService = {
             const endDate = `${year}-${month}-${lastDay}`;
             
             query = query.gte('fecha', startDate).lte('fecha', endDate);
+            query = query.order('id', { ascending: false });
+        } else {
+            // Default: Descendente (lo más nuevo primero)
+            query = query.order('id', { ascending: false });
         }
-        
-        query = query.order('id', { ascending: false });
         
         const { data, error } = await query;
         if (error) throw error;
@@ -156,8 +161,28 @@ const ExportService = {
 
         if (isCierreDia || customData) {
             if (doc.lastAutoTable.finalY > 170) doc.addPage();
-            const min = registros.length > 0 ? (registros[registros.length-1].n_rep || registros[registros.length-1].id) : '?';
-            const max = registros.length > 0 ? (registros[0].n_rep || registros[0].id) : '?';
+            
+            // CAMBIO: Lógica para determinar Min/Max dependiendo del orden
+            let min, max;
+            
+            // Función auxiliar para obtener el identificador (n_rep, numero_inscripcion o id)
+            const getId = (r) => r.n_rep || r.numero_inscripcion || r.id;
+
+            if (registros.length > 0) {
+                if (isCierreDia) {
+                    // Orden Ascendente (1 al X): El primero es el índice 0, el último es length-1
+                    min = getId(registros[0]);
+                    max = getId(registros[registros.length - 1]);
+                } else {
+                    // Orden Descendente (X al 1) o Indeterminado (asumimos desc para informes generales):
+                    // El "mínimo" numérico (el más antiguo) está al final de la lista
+                    min = getId(registros[registros.length - 1]);
+                    max = getId(registros[0]);
+                }
+            } else {
+                min = '?';
+                max = '?';
+            }
             
             doc.setFontSize(11);
             doc.text(`Certifico que se realizaron ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
