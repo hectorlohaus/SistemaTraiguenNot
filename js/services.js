@@ -11,7 +11,7 @@ const DataService = {
         let query = State.supabase.from(State.currentTable);
         let countQuery = query.select('*', { count: 'exact', head: true });
         
-        // CAMBIO: Usar el orden definido en el estado (State.sort) en lugar de fijo
+        // Usar el orden definido en el estado (State.sort) en lugar de fijo
         const sortField = State.sort?.field || 'id';
         const sortAsc = State.sort?.ascending || false;
 
@@ -60,24 +60,25 @@ const DataService = {
         const schema = SCHEMAS[State.currentTable];
         let query = State.supabase.from(State.currentTable).select(schema.dbReadFields.join(','));
         
+        // CAMBIO: Determinar dinámicamente el campo de ordenamiento según la tabla
+        let sortField = 'id';
+        if (State.currentTable === 'repertorio_instrumentos') sortField = 'n_rep';
+        else if (State.currentTable === 'repertorio_conservador') sortField = 'numero_inscripcion';
+
         if (isCierreDia) {
             const targetDate = specificDate || new Date().toISOString().split('T')[0];
             query = query.eq('fecha', targetDate);
-            
-            // CAMBIO: Orden ascendente para Cierre de Día (1 al X)
-            query = query.order('id', { ascending: true });
         } else if (monthFilter) {
             const [year, month] = monthFilter.split('-');
             const startDate = `${year}-${month}-01`;
             const lastDay = new Date(year, month, 0).getDate();
             const endDate = `${year}-${month}-${lastDay}`;
-            
             query = query.gte('fecha', startDate).lte('fecha', endDate);
-            query = query.order('id', { ascending: false });
-        } else {
-            // Default: Descendente (lo más nuevo primero)
-            query = query.order('id', { ascending: false });
         }
+        
+        // CAMBIO: Siempre ordenar ascendente por n_rep/numero_inscripcion para reportes
+        // Esto garantiza secuencia correcta (1, 2, 3...)
+        query = query.order(sortField, { ascending: true });
         
         const { data, error } = await query;
         if (error) throw error;
@@ -162,23 +163,14 @@ const ExportService = {
         if (isCierreDia || customData) {
             if (doc.lastAutoTable.finalY > 170) doc.addPage();
             
-            // CAMBIO: Lógica para determinar Min/Max dependiendo del orden
+            // Lógica Min/Max
             let min, max;
-            
-            // Función auxiliar para obtener el identificador (n_rep, numero_inscripcion o id)
             const getId = (r) => r.n_rep || r.numero_inscripcion || r.id;
 
             if (registros.length > 0) {
-                if (isCierreDia) {
-                    // Orden Ascendente (1 al X): El primero es el índice 0, el último es length-1
-                    min = getId(registros[0]);
-                    max = getId(registros[registros.length - 1]);
-                } else {
-                    // Orden Descendente (X al 1) o Indeterminado (asumimos desc para informes generales):
-                    // El "mínimo" numérico (el más antiguo) está al final de la lista
-                    min = getId(registros[registros.length - 1]);
-                    max = getId(registros[0]);
-                }
+                // Al estar ordenado Ascendente, el primero es el menor y el último el mayor
+                min = getId(registros[0]);
+                max = getId(registros[registros.length - 1]);
             } else {
                 min = '?';
                 max = '?';
