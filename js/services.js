@@ -7,27 +7,27 @@ const DataService = {
         const schema = SCHEMAS[State.currentTable];
         const from = (State.currentPage - 1) * CONFIG.RECORDS_PER_PAGE;
         const to = from + CONFIG.RECORDS_PER_PAGE - 1;
-        
+
         let query = State.supabase.from(State.currentTable);
         let countQuery = query.select('*', { count: 'exact', head: true });
-        
+
         // Usar el orden definido en el estado (State.sort) en lugar de fijo
         const sortField = State.sort?.field || 'id';
         const sortAsc = State.sort?.ascending || false;
 
         let dataQuery = query.select(schema.dbReadFields.join(','))
-                             .order(sortField, { ascending: sortAsc })
-                             .range(from, to);
-        
+            .order(sortField, { ascending: sortAsc })
+            .range(from, to);
+
         if (filtro && schema.filterColumns.length > 0) {
             const filtroQuery = schema.filterColumns.map(col => `${col}.ilike.%${filtro}%`).join(',');
-            countQuery = countQuery.or(filtroQuery); 
+            countQuery = countQuery.or(filtroQuery);
             dataQuery = dataQuery.or(filtroQuery);
         }
-        
+
         const { data, error } = await dataQuery;
         const { count, error: countError } = await countQuery;
-        
+
         if (error || countError) throw new Error((error || countError).message);
         return { data, count };
     },
@@ -45,21 +45,39 @@ const DataService = {
             .ilike('n_rep', `%-${year}`)
             .order('id', { ascending: false })
             .limit(1);
-            
+
         if (error) throw error;
-        
+
         let next = 1;
-        if(data && data.length > 0) {
+        if (data && data.length > 0) {
             const parts = data[0].n_rep.split('-');
-            if(parts[0] && !isNaN(parseInt(parts[0]))) next = parseInt(parts[0]) + 1;
+            if (parts[0] && !isNaN(parseInt(parts[0]))) next = parseInt(parts[0]) + 1;
         }
-        return `${next < 10 ? '0'+next : next}-${year}`;
+        return `${next < 10 ? '0' + next : next}-${year}`;
+    },
+
+    async getNextInscripcion(year) {
+        const { data, error } = await State.supabase
+            .from('repertorio_conservador')
+            .select('numero_inscripcion')
+            .ilike('numero_inscripcion', `%-${year}`)
+            .order('id', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        let next = 1;
+        if (data && data.length > 0) {
+            const parts = data[0].numero_inscripcion.split('-');
+            if (parts[0] && !isNaN(parseInt(parts[0]))) next = parseInt(parts[0]) + 1;
+        }
+        return `${next < 10 ? '0' + next : next}-${year}`;
     },
 
     async getAllRecordsForExport(isCierreDia, monthFilter = null, specificDate = null) {
         const schema = SCHEMAS[State.currentTable];
         let query = State.supabase.from(State.currentTable).select(schema.dbReadFields.join(','));
-        
+
         // CAMBIO: Determinar dinámicamente el campo de ordenamiento según la tabla
         let sortField = 'id';
         if (State.currentTable === 'repertorio_instrumentos') sortField = 'n_rep';
@@ -75,11 +93,11 @@ const DataService = {
             const endDate = `${year}-${month}-${lastDay}`;
             query = query.gte('fecha', startDate).lte('fecha', endDate);
         }
-        
+
         // CAMBIO: Siempre ordenar ascendente por n_rep/numero_inscripcion para reportes
         // Esto garantiza secuencia correcta (1, 2, 3...)
         query = query.order(sortField, { ascending: true });
-        
+
         const { data, error } = await query;
         if (error) throw error;
         return data;
@@ -98,7 +116,7 @@ const DataService = {
 const ExportService = {
     async generatePDF(isCierreDia, customData = null, specificDate = null) {
         if (typeof window.jspdf === 'undefined') { UI.showError("Librerías cargando..."); return; }
-        
+
         let registros = [];
         const schema = SCHEMAS[State.currentTable];
 
@@ -113,16 +131,16 @@ const ExportService = {
             } else {
                 registros = this.getSelectedData();
             }
-        } catch(e) { UI.showError(e.message); UI.showLoading(false); return; }
+        } catch (e) { UI.showError(e.message); UI.showLoading(false); return; }
         UI.showLoading(false);
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        
+
         let title = schema.tableName;
         if (isCierreDia) {
-             const dateStr = specificDate ? new Date(specificDate + 'T00:00:00').toLocaleDateString('es-CL') : new Date().toLocaleDateString('es-CL');
-             title = `CIERRE DE DÍA (${dateStr}) - ${schema.tableName}`;
+            const dateStr = specificDate ? new Date(specificDate + 'T00:00:00').toLocaleDateString('es-CL') : new Date().toLocaleDateString('es-CL');
+            title = `CIERRE DE DÍA (${dateStr}) - ${schema.tableName}`;
         } else if (customData) {
             title = `INFORME - ${schema.tableName}`;
         }
@@ -132,7 +150,7 @@ const ExportService = {
         const body = registros.map(row => {
             if (State.currentTable === 'repertorio_instrumentos') {
                 return [
-                    UI.formatDate(row.fecha), 
+                    UI.formatDate(row.fecha),
                     row.n_rep,
                     `${row.contratante_1_nombre} ${row.contratante_1_apellido}`,
                     `${row.contratante_2_nombre} ${row.contratante_2_apellido}`,
@@ -148,7 +166,7 @@ const ExportService = {
                     });
             }
         });
-        
+
         const headers = schema.columnNames.filter((_, i) => !schema.hiddenColumns?.includes(i));
 
         doc.autoTable({
@@ -162,7 +180,7 @@ const ExportService = {
 
         if (isCierreDia || customData) {
             if (doc.lastAutoTable.finalY > 170) doc.addPage();
-            
+
             // Lógica Min/Max
             let min, max;
             const getId = (r) => r.n_rep || r.numero_inscripcion || r.id;
@@ -175,7 +193,7 @@ const ExportService = {
                 min = '?';
                 max = '?';
             }
-            
+
             doc.setFontSize(11);
             doc.text(`Certifico que se realizaron ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
             doc.text("_______________________", 150, doc.lastAutoTable.finalY + 30);
@@ -196,23 +214,23 @@ const ExportService = {
             } else {
                 registros = this.getSelectedData();
             }
-        } catch(e) { UI.showError(e.message); UI.showLoading(false); return; }
+        } catch (e) { UI.showError(e.message); UI.showLoading(false); return; }
         UI.showLoading(false);
 
         if (!registros || registros.length === 0) { UI.showError("Sin datos."); return; }
-        
+
         const schema = SCHEMAS[State.currentTable];
         const headers = schema.columnNames.filter((_, i) => !schema.hiddenColumns?.includes(i));
-        
+
         let csvRows = [];
-        csvRows.push(headers.join(";")); 
+        csvRows.push(headers.join(";"));
 
         registros.forEach(row => {
             let rowData = [];
             if (State.currentTable === 'repertorio_instrumentos') {
                 rowData = [
-                    UI.formatDate(row.fecha), 
-                    `="${row.n_rep}"`, 
+                    UI.formatDate(row.fecha),
+                    `="${row.n_rep}"`,
                     `${row.contratante_1_nombre} ${row.contratante_1_apellido}`,
                     `${row.contratante_2_nombre} ${row.contratante_2_apellido}`,
                     row.acto_o_contrato, row.abogado_redactor, row.n_agregado, UI.formatDate(row.created_at)
@@ -234,7 +252,7 @@ const ExportService = {
         const csvString = csvRows.join("\r\n");
         const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        
+
         let filename = `Exportacion_${schema.tableName}`;
         if (monthFilter) filename += `_${monthFilter}`;
         filename += ".csv";
@@ -248,7 +266,7 @@ const ExportService = {
     },
 
     async generateIndiceGeneral() {
-        const mesAnio = prompt("Ingrese MM-AAAA:", new Date().toLocaleDateString('es-CL', {month:'2-digit', year:'numeric'}).replace('/', '-'));
+        const mesAnio = prompt("Ingrese MM-AAAA:", new Date().toLocaleDateString('es-CL', { month: '2-digit', year: 'numeric' }).replace('/', '-'));
         if (!mesAnio) return;
         const [mes, anio] = mesAnio.split('-');
         if (!mes || !anio) { UI.showError("Formato incorrecto."); return; }
@@ -272,7 +290,7 @@ const ExportService = {
         });
 
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' }); 
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
         const letras = Object.keys(grouped).sort();
 
         letras.forEach((letra, index) => {
@@ -281,7 +299,7 @@ const ExportService = {
             doc.setFontSize(10); doc.text(`Período: ${mes}-${anio}`, 105, 26, { align: 'center' });
 
             const body = grouped[letra].map(r => [
-                `${r.contratante_1_apellido}, ${r.contratante_1_nombre}`, 
+                `${r.contratante_1_apellido}, ${r.contratante_1_nombre}`,
                 `${r.contratante_2_nombre} ${r.contratante_2_apellido}`,
                 r.acto_o_contrato, r.n_rep
             ]);
@@ -289,7 +307,7 @@ const ExportService = {
             doc.autoTable({
                 head: [['Contratante 1 (Orden)', 'Contratante 2', 'Acto', 'N° Rep']],
                 body: body, startY: 35, theme: 'plain', styles: { fontSize: 9, cellPadding: 2 },
-                columnStyles: { 0: { fontStyle: 'bold' } } 
+                columnStyles: { 0: { fontStyle: 'bold' } }
             });
         });
         doc.save(`Indice_General_${mes}_${anio}.pdf`);
@@ -315,12 +333,12 @@ const ExportService = {
         if (!registros || registros.length === 0) { UI.showError("No hay datos para imprimir."); return; }
 
         const schema = SCHEMAS[State.currentTable];
-        
+
         const tableRows = registros.map(row => {
             let cells = '';
             if (State.currentTable === 'repertorio_instrumentos') {
                 const data = [
-                    UI.formatDate(row.fecha), 
+                    UI.formatDate(row.fecha),
                     row.n_rep,
                     `${row.contratante_1_nombre} ${row.contratante_1_apellido}`,
                     `${row.contratante_2_nombre} ${row.contratante_2_apellido}`,
