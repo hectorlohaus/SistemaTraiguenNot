@@ -15,19 +15,19 @@ const BuscadorService = {
     init() {
         const btnSearch = document.getElementById('btn-adv-search');
         const btnClear = document.getElementById('btn-adv-clear');
-        
+
         // NUEVOS BOTONES DE NAVEGACIÓN
         const btnInst = document.getElementById('btn-adv-inst');
         const btnCons = document.getElementById('btn-adv-cons');
-        
+
         if (btnSearch) btnSearch.addEventListener('click', () => this.executeSearch());
         if (btnClear) btnClear.addEventListener('click', () => this.clearFilters());
-        
+
         // Listeners para los botones de cambio de tabla
         if (btnInst && btnCons) {
             btnInst.addEventListener('click', () => this.switchTable('repertorio_instrumentos'));
             btnCons.addEventListener('click', () => this.switchTable('repertorio_conservador'));
-            
+
             // Inicializar estilos
             this.updateButtonStyles();
         }
@@ -39,7 +39,7 @@ const BuscadorService = {
     // Nueva función para cambiar de tabla y gestionar el estado
     switchTable(tableName) {
         this.state.currentTable = tableName;
-        
+
         // Actualizar estado global si es necesario para exportaciones
         if (typeof State !== 'undefined') State.currentTable = tableName;
 
@@ -93,6 +93,12 @@ const BuscadorService = {
 
             if (field.type === 'date') {
                 inputHtml = `<input type="date" id="adv-${field.id}" class="${baseClass}">`;
+            } else if (field.type === 'select') {
+                let optionsHtml = `<option value="">Todas</option>`;
+                if (field.options && Array.isArray(field.options)) {
+                    optionsHtml += field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                }
+                inputHtml = `<select id="adv-${field.id}" class="${baseClass}">${optionsHtml}</select>`;
             } else {
                 inputHtml = `<input type="text" id="adv-${field.id}" class="${baseClass}" placeholder="Buscar...">`;
             }
@@ -124,8 +130,8 @@ const BuscadorService = {
                     if (field.type === 'text') {
                         // Búsqueda insensible a mayúsculas (ilike)
                         query = query.ilike(field.id, `%${el.value}%`);
-                    } else if (field.type === 'date') {
-                        // Búsqueda exacta de fecha
+                    } else if (field.type === 'date' || field.type === 'select') {
+                        // Búsqueda exacta de fecha o selección
                         query = query.eq(field.id, el.value);
                     }
                 }
@@ -138,12 +144,12 @@ const BuscadorService = {
             query = query.limit(100);
 
             const { data, error } = await query;
-            
+
             if (error) throw error;
-            
+
             this.state.results = data;
             this.renderResults();
-            
+
             if (data.length === 0) {
                 UI.showToast("No se encontraron resultados.");
             } else {
@@ -171,10 +177,10 @@ const BuscadorService = {
         let headerHtml = `<th class="py-3 px-6 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-10">#</th>`;
         schema.columnNames.forEach((name, index) => {
             if (schema.hiddenColumns?.includes(index)) return;
-            
+
             // Usar sortMap para determinar el campo de ordenamiento correcto
             const dbField = schema.sortMap ? schema.sortMap[index] : schema.dbReadFields[index];
-            
+
             // Icono de orden
             let sortIcon = '';
             // Mostrar flecha si es la columna activa
@@ -199,7 +205,7 @@ const BuscadorService = {
         this.state.results.forEach((row, rowIndex) => {
             const tr = document.createElement('tr');
             tr.className = "border-b border-gray-200 hover:bg-slate-50 transition duration-150 ease-in-out bg-white";
-            
+
             let html = `<td class="py-3 px-6 text-xs text-gray-400">${rowIndex + 1}</td>`;
 
             if (this.state.currentTable === 'repertorio_instrumentos') {
@@ -221,7 +227,7 @@ const BuscadorService = {
                     html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap">${val || '-'}</td>`;
                 });
             }
-            
+
             tr.innerHTML = html;
             container.appendChild(tr);
         });

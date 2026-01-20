@@ -110,6 +110,20 @@ const DataService = {
             .gte('fecha', startDate)
             .lte('fecha', endDate)
             .order('contratante_1_apellido', { ascending: true });
+    },
+
+    async getRecordsForIndiceConservador(startDate, endDate, registroParcial) {
+        let query = State.supabase
+            .from('repertorio_conservador')
+            .select('*') // Seleccionar todo para tener todos los datos disponibles
+            .gte('fecha', startDate)
+            .lte('fecha', endDate);
+
+        if (registroParcial) {
+            query = query.eq('registro_parcial', registroParcial);
+        }
+
+        return await query.order('interesado', { ascending: true });
     }
 };
 
@@ -311,6 +325,97 @@ const ExportService = {
             });
         });
         doc.save(`Indice_General_${mes}_${anio}.pdf`);
+    },
+
+    async generateIndiceConservador(registroParcial, yearInput) {
+        const anio = yearInput || new Date().getFullYear();
+        if (!anio || isNaN(anio) || String(anio).length !== 4) { UI.showError("Año inválido. Debe ser YYYY."); return; }
+
+        UI.showLoading(true);
+        const startDate = `${anio}-01-01`;
+        const endDate = `${anio}-12-31`;
+
+        const { data, error } = await DataService.getRecordsForIndiceConservador(startDate, endDate, registroParcial);
+        UI.showLoading(false);
+
+        if (error) { UI.showError(error.message); return; }
+        if (!data || data.length === 0) { UI.showError("No hay datos para este registro y año."); return; }
+
+        // Agrupar por letra inicial del interesado
+        const grouped = {};
+        data.forEach(r => {
+            const letra = (r.interesado || '').trim().charAt(0).toUpperCase();
+            if (/[A-Z]/.test(letra)) {
+                if (!grouped[letra]) grouped[letra] = [];
+                grouped[letra].push(r);
+            } else {
+                if (!grouped['#']) grouped['#'] = [];
+                grouped['#'].push(r);
+            }
+        });
+
+        const { jsPDF } = window.jspdf;
+        // Landscape orientation
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const letras = Object.keys(grouped).sort();
+
+        // Columnas solicitadas: N° Inscripción primero, excluir ID
+        const headers = ['N° Inscripción', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Fecha', 'Registro Parcial', 'Observaciones', 'Ingresado'];
+
+        letras.forEach((letra, index) => {
+            if (index > 0) doc.addPage();
+            // Título centrado (Landscape A4 width ~297mm -> center ~148mm)
+            doc.setFontSize(16); doc.text('ÍNDICE GENERAL ANUAL', 148, 20, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.text(`Registro: ${registroParcial || 'Todos'}`, 148, 26, { align: 'center' });
+            doc.text(`Año: ${anio}`, 148, 31, { align: 'center' });
+
+            const body = grouped[letra].map(r => [
+                r.numero_inscripcion, // Primero
+                r.interesado,
+                r.acto_o_contrato,
+                r.clase_inscripcion,
+                r.hora,
+                UI.formatDate(r.fecha),
+                r.registro_parcial,
+                r.observaciones,
+                UI.formatDate(r.created_at)
+            ]);
+
+            doc.autoTable({
+                head: [headers],
+                body: body,
+                startY: 40,
+                theme: 'grid',
+                styles: {
+                    fontSize: 7, // Un poco más pequeño para que quepa todo
+                    cellPadding: 2,
+                    overflow: 'linebreak'
+                },
+                headStyles: {
+                    fillColor: [0, 0, 0],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 25 }, // N° Inscripción
+                    1: { cellWidth: 45 }, // Interesado
+                    2: { cellWidth: 35 }, // Acto
+                    3: { cellWidth: 25 }, // Clase
+                    4: { cellWidth: 15 }, // Hora
+                    5: { cellWidth: 20 }, // Fecha
+                    6: { cellWidth: 35 }, // Registro Parcial
+                    7: { cellWidth: 35 }, // Observaciones
+                    8: { cellWidth: 20 }  // Ingresado
+                    // Total aprox: 255mm (A4 Landscape margins left default)
+                }
+            });
+        });
+
+        const cleanName = (registroParcial || 'General').replace(/\s+/g, '_');
+        doc.save(`Indice_Anual_${cleanName}_${anio}.pdf`);
     },
 
     getSelectedData() {

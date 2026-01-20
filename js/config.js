@@ -31,10 +31,11 @@ const SCHEMAS = {
         filterColumns: ['n_rep', 'contratante_1_nombre', 'contratante_1_apellido', 'contratante_2_nombre', 'contratante_2_apellido', 'acto_o_contrato', 'abogado_redactor'],
 
         // CAMBIO: Fechas desde/hasta
+        // CAMBIO: Fechas desde/hasta primero
         advancedSearch: [
-            { id: 'n_rep', label: 'N° Repertorio', type: 'text' },
             { id: 'fecha_desde', label: 'Fecha Desde', type: 'date' },
             { id: 'fecha_hasta', label: 'Fecha Hasta', type: 'date' },
+            { id: 'n_rep', label: 'N° Repertorio', type: 'text' },
             { id: 'contratante_1_apellido', label: 'Apellido Contratante 1', type: 'text' },
             { id: 'contratante_1_nombre', label: 'Nombre Contratante 1', type: 'text' },
             { id: 'contratante_2_apellido', label: 'Apellido Contratante 2', type: 'text' },
@@ -45,10 +46,11 @@ const SCHEMAS = {
     },
     'repertorio_conservador': {
         tableName: 'Repertorio Conservador',
-        dbReadFields: ['id', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'fecha', 'numero_inscripcion', 'registro_parcial', 'observaciones', 'created_at'],
-        columnNames: ['Número', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Fecha', 'N° Inscripción', 'Registro Parcial', 'Observaciones', 'Ingresado'],
+        dbReadFields: ['id', 'numero_inscripcion', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'fecha', 'registro_parcial', 'observaciones', 'created_at'],
+        columnNames: ['Número', 'N° Inscripción', 'Interesado', 'Acto o Contrato', 'Clase Inscripción', 'Hora', 'Fecha', 'Registro Parcial', 'Observaciones', 'Ingresado'],
 
-        sortMap: ['id', 'interesado', 'acto_o_contrato', 'clase_inscripcion', 'hora', 'fecha', 'numero_inscripcion', 'registro_parcial', 'observaciones', 'created_at'],
+        // Ocultar columna 'id' (índice 0) siempre, según solicitud del usuario
+        hiddenColumns: [0],
 
         formFields: [
             { id: 'interesado', label: 'Interesado', type: 'text', span: 2, required: true },
@@ -63,13 +65,15 @@ const SCHEMAS = {
         filterColumns: ['interesado', 'acto_o_contrato', 'clase_inscripcion', 'numero_inscripcion'],
 
         // CAMBIO: Fechas desde/hasta
+        // CAMBIO: Fechas primero, luego orden de tabla, agregando faltantes
         advancedSearch: [
-            { id: 'interesado', label: 'Interesado', type: 'text' },
             { id: 'fecha_desde', label: 'Fecha Desde', type: 'date' },
             { id: 'fecha_hasta', label: 'Fecha Hasta', type: 'date' },
             { id: 'numero_inscripcion', label: 'N° Inscripción', type: 'text' },
+            { id: 'interesado', label: 'Interesado', type: 'text' },
             { id: 'acto_o_contrato', label: 'Acto o Contrato', type: 'text' },
-            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text' }
+            { id: 'clase_inscripcion', label: 'Clase Inscripción', type: 'text' },
+            { id: 'registro_parcial', label: 'Registro Parcial', type: 'select', options: ['Registro de Propiedad', 'Registro de Hipotecas y Gravamenes', 'Registro de Interdicciones y Prohibiciones', 'Registro de Comercio', 'Registro de Aguas'] }
         ]
     }
 };
