@@ -6,30 +6,75 @@ const DataService = {
     async loadData(filtro = '') {
         const schema = SCHEMAS[State.currentTable];
         const from = (State.currentPage - 1) * CONFIG.RECORDS_PER_PAGE;
-        const to = from + CONFIG.RECORDS_PER_PAGE - 1;
 
-        let query = State.supabase.from(State.currentTable);
-        let countQuery = query.select('*', { count: 'exact', head: true });
-
-        // Usar el orden definido en el estado (State.sort) en lugar de fijo
+        // Sorting Configuration
         const sortField = State.sort?.field || 'id';
-        const sortAsc = State.sort?.ascending || false;
+        const sortAsc = State.sort?.ascending !== false; // Default true
+        const isSpecialSort = (sortField === 'n_rep' || sortField === 'numero_inscripcion');
 
-        let dataQuery = query.select(schema.dbReadFields.join(','))
-            .order(sortField, { ascending: sortAsc })
-            .range(from, to);
+        let queryBase = State.supabase.from(State.currentTable);
 
+        // Filter Construction
+        let filterStr = '';
         if (filtro && schema.filterColumns.length > 0) {
-            const filtroQuery = schema.filterColumns.map(col => `${col}.ilike.%${filtro}%`).join(',');
-            countQuery = countQuery.or(filtroQuery);
-            dataQuery = dataQuery.or(filtroQuery);
+            filterStr = schema.filterColumns.map(col => `${col}.ilike.%${filtro}%`).join(',');
         }
 
-        const { data, error } = await dataQuery;
-        const { count, error: countError } = await countQuery;
+        try {
+            if (isSpecialSort) {
+                // STRATEGY: Fetch ALL minimal data, sort in JS, paginate, fetch details
+                let allQuery = queryBase.select(`id, ${sortField}`);
+                if (filterStr) allQuery = allQuery.or(filterStr);
 
-        if (error || countError) throw new Error((error || countError).message);
-        return { data, count };
+                const { data: allIds, error: allError } = await allQuery;
+                if (allError) throw allError;
+
+                // Natural Sort (Numeric start of string)
+                allIds.sort((a, b) => {
+                    const valA = a[sortField] || '';
+                    const valB = b[sortField] || '';
+                    const numA = parseInt(valA.split('-')[0]) || 0;
+                    const numB = parseInt(valB.split('-')[0]) || 0;
+
+                    if (numA !== numB) return sortAsc ? numA - numB : numB - numA;
+                    // Fallback to year part or full string if numbers equal
+                    return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                });
+
+                const count = allIds.length;
+                const sliced = allIds.slice(from, from + CONFIG.RECORDS_PER_PAGE);
+
+                if (sliced.length === 0) return { data: [], count };
+
+                // Fetch details for the current page
+                const targetIds = sliced.map(x => x.id);
+                const { data: details, error: detError } = await queryBase
+                    .select(schema.dbReadFields.join(','))
+                    .in('id', targetIds);
+
+                if (detError) throw detError;
+
+                // Re-sort details to match the sliced order (Supabase .in() is unordered)
+                const orderMap = new Map(sliced.map((item, index) => [item.id, index]));
+                details.sort((a, b) => orderMap.get(a.id) - orderMap.get(b.id));
+
+                return { data: details, count };
+
+            } else {
+                // NORMAL/LEGACY BEHAVIOR (Server-side sort)
+                let query = queryBase.select(schema.dbReadFields.join(','), { count: 'exact' });
+                if (filterStr) query = query.or(filterStr);
+
+                query = query.order(sortField, { ascending: sortAsc })
+                    .range(from, from + CONFIG.RECORDS_PER_PAGE - 1);
+
+                const { data, count, error } = await query;
+                if (error) throw error;
+                return { data, count };
+            }
+        } catch (e) {
+            throw new Error(e.message);
+        }
     },
 
     async saveRecord(record) {
@@ -78,10 +123,18 @@ const DataService = {
         const schema = SCHEMAS[State.currentTable];
         let query = State.supabase.from(State.currentTable).select(schema.dbReadFields.join(','));
 
-        // CAMBIO: Determinar dinámicamente el campo de ordenamiento según la tabla
+        // CAMBIO: Determinar campo de orden y si es ordenamiento especial
         let sortField = 'id';
-        if (State.currentTable === 'repertorio_instrumentos') sortField = 'n_rep';
-        else if (State.currentTable === 'repertorio_conservador') sortField = 'numero_inscripcion';
+        let isSpecialSort = false;
+
+        if (State.currentTable === 'repertorio_instrumentos') {
+            sortField = 'n_rep';
+            isSpecialSort = true;
+        }
+        else if (State.currentTable === 'repertorio_conservador') {
+            sortField = 'numero_inscripcion';
+            isSpecialSort = true;
+        }
 
         if (isCierreDia) {
             const targetDate = specificDate || new Date().toISOString().split('T')[0];
@@ -94,12 +147,32 @@ const DataService = {
             query = query.gte('fecha', startDate).lte('fecha', endDate);
         }
 
-        // CAMBIO: Siempre ordenar ascendente por n_rep/numero_inscripcion para reportes
-        // Esto garantiza secuencia correcta (1, 2, 3...)
-        query = query.order(sortField, { ascending: true });
+        // Fetch data. If not special sort, usage of basic sort is fine, but for reports 
+        // we might want natural sort anyway if numerical strings are involved.
+        // We fetch UNORDERED or basic ordered first.
+        // For standard fields (created_at, etc) basic sort is fine. 
+        // But for n_rep/n_insc we MUST use JS sort.
+
+        if (!isSpecialSort) {
+            query = query.order(sortField, { ascending: true });
+        }
 
         const { data, error } = await query;
         if (error) throw error;
+
+        // Apply Custom Natural Sort if needed
+        if (isSpecialSort && data.length > 0) {
+            data.sort((a, b) => {
+                const valA = a[sortField] || '';
+                const valB = b[sortField] || '';
+                const numA = parseInt(valA.split('-')[0]) || 0;
+                const numB = parseInt(valB.split('-')[0]) || 0;
+
+                if (numA !== numB) return numA - numB;
+                return valA.localeCompare(valB);
+            });
+        }
+
         return data;
     },
 
