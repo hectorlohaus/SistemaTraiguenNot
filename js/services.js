@@ -213,8 +213,7 @@ const ExportService = {
                 registros = customData;
             } else if (isCierreDia) {
                 const data = await DataService.getAllRecordsForExport(true, null, specificDate);
-                if (!data || data.length === 0) throw new Error("No hay registros para la fecha seleccionada.");
-                registros = data;
+                registros = data || [];
             } else {
                 registros = this.getSelectedData();
             }
@@ -268,21 +267,17 @@ const ExportService = {
         if (isCierreDia || customData) {
             if (doc.lastAutoTable.finalY > 170) doc.addPage();
 
-            // Lógica Min/Max
-            let min, max;
-            const getId = (r) => r.n_rep || r.numero_inscripcion || r.id;
-
+            doc.setFontSize(11);
             if (registros.length > 0) {
-                // Al estar ordenado Ascendente, el primero es el menor y el último el mayor
-                min = getId(registros[0]);
-                max = getId(registros[registros.length - 1]);
+                // Lógica Min/Max
+                const getId = (r) => r.n_rep || r.numero_inscripcion || r.id;
+                const min = getId(registros[0]);
+                const max = getId(registros[registros.length - 1]);
+                doc.text(`Certifico que se realizaron ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
             } else {
-                min = '?';
-                max = '?';
+                doc.text(`Certifico que se realizaron 0 anotaciones.`, 15, doc.lastAutoTable.finalY + 15);
             }
 
-            doc.setFontSize(11);
-            doc.text(`Certifico que se realizaron ${registros.length} anotaciones (del ${min} al ${max}).`, 15, doc.lastAutoTable.finalY + 15);
             doc.text("_______________________", 150, doc.lastAutoTable.finalY + 30);
             doc.text("Firma Responsable", 165, doc.lastAutoTable.finalY + 35, { align: 'center' });
         }
