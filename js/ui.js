@@ -63,8 +63,30 @@ const UI = {
             const tr = document.createElement('tr');
             tr.className = "border-b border-gray-200 hover:bg-slate-50 bg-white";
 
+            // 1. Checkbox primero
             let html = `<td class="py-3 px-6"><input type="checkbox" class="row-checkbox rounded text-blue-600 focus:ring-blue-500 border-gray-300"></td>`;
 
+            // 2. Columna de Acciones SEGUNDO (Solo para Admin)
+            if (typeof isAdmin !== 'undefined' && isAdmin) {
+                const nRep = row.n_rep || row.numero_inscripcion || row.id;
+                html += `
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-1">
+                            <button class="btn-edit-row text-blue-600 hover:text-blue-800 transition-colors p-1 rounded hover:bg-blue-50" data-id="${row.id}" title="Editar">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </button>
+                            <button class="btn-delete-row text-red-500 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50" data-id="${row.id}" data-nrep="${nRep}" title="Eliminar">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </td>`;
+            }
+
+            // 3. Datos
             if (State.currentTable === 'repertorio_instrumentos') {
                 const contratante1 = `${row.contratante_1_nombre || ''} ${row.contratante_1_apellido || ''}`.trim();
                 const contratante2 = `${row.contratante_2_nombre || ''} ${row.contratante_2_apellido || ''}`.trim();
@@ -84,18 +106,6 @@ const UI = {
                     if (field === 'created_at' || field === 'fecha') val = this.formatDate(val);
                     html += `<td class="py-3 px-6 text-sm text-gray-700 whitespace-nowrap max-w-xs truncate" title="${val || ''}">${val || '-'}</td>`;
                 });
-            }
-
-            // CAMBIO: Columna de Acciones (Solo para Admin)
-            if (typeof isAdmin !== 'undefined' && isAdmin) {
-                html += `
-                    <td class="py-3 px-6 text-center whitespace-nowrap">
-                        <button class="btn-edit-row text-blue-600 hover:text-blue-800 transition-colors p-1 rounded hover:bg-blue-50" data-id="${row.id}" title="Editar">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                        </button>
-                    </td>`;
             }
 
             tr.innerHTML = html;

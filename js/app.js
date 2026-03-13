@@ -70,8 +70,17 @@ const App = {
         if (UI.els['app-title']) UI.els['app-title'].textContent = isAdmin ? schema.tableName : `${schema.tableName} (Invitado)`;
 
         if (UI.els['table-header']) {
-            let headerHtml = `<tr class="bg-slate-100 text-slate-600 uppercase text-xs leading-normal"><th class="py-3 px-6 text-left w-10"><input type="checkbox" id="select-all-checkbox" class="rounded text-blue-600"></th>`;
+            let headerHtml = `<tr class="bg-slate-100 text-slate-600 uppercase text-xs leading-normal">`;
 
+            // 1. Checkbox
+            headerHtml += `<th class="py-3 px-6 text-left w-10"><input type="checkbox" id="select-all-checkbox" class="rounded text-blue-600"></th>`;
+
+            // 2. Acciones (si es Admin) — antes de los datos
+            if (typeof isAdmin !== 'undefined' && isAdmin) {
+                headerHtml += `<th class="py-3 px-4 text-center font-bold tracking-wider border-b-2 border-transparent">Acciones</th>`;
+            }
+
+            // 3. Columnas de datos
             schema.columnNames.forEach((name, index) => {
                 if (schema.hiddenColumns?.includes(index)) return;
 
@@ -119,11 +128,6 @@ const App = {
                         </div>
                     </th>`;
             });
-
-            // Columna de Acciones si es Admin
-            if (typeof isAdmin !== 'undefined' && isAdmin) {
-                headerHtml += `<th class="py-3 px-6 text-center font-bold tracking-wider border-b-2 border-transparent">Acciones</th>`;
-            }
 
             UI.els['table-header'].innerHTML = headerHtml + `</tr>`;
 
@@ -415,11 +419,58 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const tbody = document.getElementById('table-body');
         if (tbody) {
-            tbody.addEventListener('click', (e) => {
-                const btn = e.target.closest('.btn-edit-row');
-                if (btn) {
-                    const id = btn.dataset.id;
-                    App.startEdit(id);
+            tbody.addEventListener('click', async (e) => {
+                const editBtn = e.target.closest('.btn-edit-row');
+                if (editBtn) {
+                    App.startEdit(editBtn.dataset.id);
+                    return;
+                }
+
+                const deleteBtn = e.target.closest('.btn-delete-row');
+                if (deleteBtn) {
+                    const id = deleteBtn.dataset.id;
+                    const nRep = deleteBtn.dataset.nrep || id;
+
+                    const modal = document.getElementById('delete-modal');
+                    const nRepLabel = document.getElementById('delete-modal-nrep');
+                    const btnConfirm = document.getElementById('btn-confirm-delete-modal');
+                    const btnCancel = document.getElementById('btn-cancel-delete-modal');
+
+                    if (nRepLabel) nRepLabel.textContent = `N° ${nRep}`;
+                    if (modal) modal.style.display = 'flex';
+
+                    // Limpiar listeners anteriores clonando el botón
+                    const newConfirm = btnConfirm.cloneNode(true);
+                    const newCancel = btnCancel.cloneNode(true);
+                    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+                    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+                    newCancel.addEventListener('click', () => {
+                        if (modal) modal.style.display = 'none';
+                    });
+
+                    newConfirm.addEventListener('click', async () => {
+                        if (modal) modal.style.display = 'none';
+                        try {
+                            const user = (await State.supabase.auth.getUser()).data.user;
+                            if (!user || user.id !== ALLOWED_EDIT_UUID) {
+                                UI.showError('No tienes permiso para eliminar registros.');
+                                return;
+                            }
+
+                            const { error } = await State.supabase
+                                .from(State.currentTable)
+                                .delete()
+                                .eq('id', id);
+
+                            if (error) throw error;
+
+                            UI.showToast('Registro eliminado correctamente.');
+                            App.loadData();
+                        } catch (err) {
+                            UI.showError('Error al eliminar: ' + err.message);
+                        }
+                    });
                 }
             });
         }
