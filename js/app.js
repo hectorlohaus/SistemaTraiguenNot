@@ -288,14 +288,22 @@ const App = {
         const newRow = {};
         let isValid = true;
 
+        // Campos de contratante donde no se permite ingresar "-"
+        const contratanteFields = ['contratante_1_nombre', 'contratante_1_apellido', 'contratante_2_nombre', 'contratante_2_apellido'];
+
         schema.formFields.forEach(f => {
             const el = document.getElementById(`form-${f.id}`);
             if (el) {
-                const val = el.value;
-                // CAMBIO: Permitir guardar vacíos (para poder borrar datos al editar)
+                let val = el.value;
+
+                // Sanitizar campos de contratante: no permitir "-"
+                if (contratanteFields.includes(f.id)) {
+                    val = val.replace(/-/g, '').trim();
+                    el.value = val; // Actualizar el input visualmente
+                }
+
                 // Si es requerido y está vacío -> Error
                 // Si no es requerido -> Se guarda tal cual (vacío o con valor)
-
                 if (f.required && !val) {
                     isValid = false;
                     el.classList.add('border-red-500');
