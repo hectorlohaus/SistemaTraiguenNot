@@ -2,6 +2,41 @@
 // js/services.js
 // Lógica de negocio: Datos (Supabase) y Exportación (PDF/Excel/Print)
 
+// Helper: Clave de ordenamiento para Contratante 1 (para agrupación en índice)
+// Si tiene apellido → apellido. Si no tiene → nombre como fallback.
+function getContratante1SortKey(record) {
+    const apellido = (record.contratante_1_apellido || '').trim();
+    const nombre = (record.contratante_1_nombre || '').trim();
+    return apellido || nombre || '';
+}
+
+// Comparador de dos niveles para Contratante 1:
+// 1. Sin apellido primero (ordenados por nombre entre ellos)
+// 2. Con apellido después (ordenados por apellido entre ellos)
+function compareContratante1(a, b, ascending) {
+    const apA = (a.contratante_1_apellido || '').trim();
+    const apB = (b.contratante_1_apellido || '').trim();
+    const nomA = (a.contratante_1_nombre || '').trim();
+    const nomB = (b.contratante_1_nombre || '').trim();
+    const hasApA = apA.length > 0;
+    const hasApB = apB.length > 0;
+
+    // Nivel 1: Sin apellido va primero
+    if (!hasApA && hasApB) return ascending ? -1 : 1;
+    if (hasApA && !hasApB) return ascending ? 1 : -1;
+
+    // Nivel 2: Dentro del mismo grupo
+    if (!hasApA && !hasApB) {
+        // Ambos sin apellido → ordenar por nombre
+        const cmp = nomA.toLowerCase().localeCompare(nomB.toLowerCase(), 'es');
+        return ascending ? cmp : -cmp;
+    }
+
+    // Ambos con apellido → ordenar por apellido
+    const cmp = apA.toLowerCase().localeCompare(apB.toLowerCase(), 'es');
+    return ascending ? cmp : -cmp;
+}
+
 const DataService = {
     async loadData(filtro = '') {
         const schema = SCHEMAS[State.currentTable];
@@ -10,7 +45,7 @@ const DataService = {
         // Sorting Configuration
         const sortField = State.sort?.field || 'id';
         const sortAsc = State.sort?.ascending !== false; // Default true
-        const isSpecialSort = (sortField === 'n_rep' || sortField === 'numero_inscripcion');
+        const isSpecialSort = (sortField === 'n_rep' || sortField === 'numero_inscripcion' || sortField === 'contratante_1_apellido');
 
         let queryBase = State.supabase.from(State.currentTable);
 
@@ -23,23 +58,32 @@ const DataService = {
         try {
             if (isSpecialSort) {
                 // STRATEGY: Fetch ALL minimal data, sort in JS, paginate, fetch details
-                let allQuery = queryBase.select(`id, ${sortField}`);
+                const isContratanteSort = (sortField === 'contratante_1_apellido');
+                const selectFields = isContratanteSort
+                    ? 'id, contratante_1_apellido, contratante_1_nombre'
+                    : `id, ${sortField}`;
+
+                let allQuery = queryBase.select(selectFields);
                 if (filterStr) allQuery = allQuery.or(filterStr);
 
                 const { data: allIds, error: allError } = await allQuery;
                 if (allError) throw allError;
 
-                // Natural Sort (Numeric start of string)
-                allIds.sort((a, b) => {
-                    const valA = a[sortField] || '';
-                    const valB = b[sortField] || '';
-                    const numA = parseInt(valA.split('-')[0]) || 0;
-                    const numB = parseInt(valB.split('-')[0]) || 0;
+                if (isContratanteSort) {
+                    // Sort dos niveles: sin apellido primero (por nombre), con apellido después (por apellido)
+                    allIds.sort((a, b) => compareContratante1(a, b, sortAsc));
+                } else {
+                    // Natural Sort (Numeric start of string) para n_rep / numero_inscripcion
+                    allIds.sort((a, b) => {
+                        const valA = a[sortField] || '';
+                        const valB = b[sortField] || '';
+                        const numA = parseInt(valA.split('-')[0]) || 0;
+                        const numB = parseInt(valB.split('-')[0]) || 0;
 
-                    if (numA !== numB) return sortAsc ? numA - numB : numB - numA;
-                    // Fallback to year part or full string if numbers equal
-                    return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                });
+                        if (numA !== numB) return sortAsc ? numA - numB : numB - numA;
+                        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    });
+                }
 
                 const count = allIds.length;
                 const sliced = allIds.slice(from, from + CONFIG.RECORDS_PER_PAGE);
@@ -182,7 +226,7 @@ const DataService = {
             .select('n_rep, fecha, contratante_1_nombre, contratante_1_apellido, contratante_2_nombre, contratante_2_apellido, acto_o_contrato')
             .gte('fecha', startDate)
             .lte('fecha', endDate)
-            .order('contratante_1_apellido', { ascending: true });
+            ;  // Sin .order() server-side: el sort se hace en JS con getContratante1SortKey()
     },
 
     async getRecordsForIndiceConservador(startDate, endDate, registroParcial) {
@@ -364,9 +408,14 @@ const ExportService = {
         if (error) { UI.showError(error.message); return; }
         if (!data || data.length === 0) { UI.showError("No hay datos."); return; }
 
+        // Ordenar: sin apellido primero (por nombre), con apellido después (por apellido)
+        data.sort((a, b) => compareContratante1(a, b, true));
+
+        // Agrupar por primera letra de la clave de ordenamiento
         const grouped = {};
         data.forEach(r => {
-            const letra = (r.contratante_1_apellido || '').charAt(0).toUpperCase();
+            const sortKey = getContratante1SortKey(r);
+            const letra = sortKey.charAt(0).toUpperCase() || '#';
             if (!grouped[letra]) grouped[letra] = [];
             grouped[letra].push(r);
         });

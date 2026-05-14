@@ -138,7 +138,10 @@ const BuscadorService = {
             });
 
             // Aplicar ordenamiento
-            query = query.order(this.state.sort.field, { ascending: this.state.sort.ascending });
+            const isContratanteSort = (this.state.sort.field === 'contratante_1_apellido');
+            if (!isContratanteSort) {
+                query = query.order(this.state.sort.field, { ascending: this.state.sort.ascending });
+            }
 
             // Límite de seguridad
             query = query.limit(100);
@@ -146,6 +149,12 @@ const BuscadorService = {
             const { data, error } = await query;
 
             if (error) throw error;
+
+            // Sort inteligente client-side para contratante (apellido, o nombre si vacío)
+            if (isContratanteSort && data.length > 0) {
+                const asc = this.state.sort.ascending;
+                data.sort((a, b) => compareContratante1(a, b, asc));
+            }
 
             this.state.results = data;
             this.renderResults();
